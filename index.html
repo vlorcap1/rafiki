@@ -1,0 +1,2299 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — Campo Doña Cecilia</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Bitter:wght@400;600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+
+:root {
+  --bg: #f4f1ea;
+  --card: #fff;
+  --card2: #faf8f4;
+  --text: #1a1a18;
+  --muted: #6b6a62;
+  --border: rgba(0,0,0,0.1);
+  --green: #3a6e2f;
+  --green-light: #e8f2e4;
+  --green-mid: #5a9e4a;
+  --amber: #b87e1a;
+  --amber-light: #fdf3de;
+  --kiwi: #7a9e2a;
+  --kiwi-light: #edf4d4;
+  --cherry: #943f3f;
+  --cherry-light: #faeaea;
+  --hazel: #8a6a3a;
+  --hazel-light: #f5ede0;
+  --blue: #2a5f8f;
+  --blue-light: #e4eef8;
+  --truffle: #6a4a7a;
+  --truffle-light: #f0ebf5;
+  --berry: #6a3a8a;
+  --berry-light: #f0eaf8;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+}
+/* Header */
+.header {
+  background: var(--green);
+  color: #fff;
+  padding: 24px 32px;
+  display: flex;
+  align-items: flex-end;
+  gap: 24px;
+  position: relative;
+  overflow: hidden;
+}
+.header::before {
+  content: '';
+  position: absolute;
+  right: -40px; top: -40px;
+  width: 200px; height: 200px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.04);
+}
+.header::after {
+  content: '';
+  position: absolute;
+  right: 80px; bottom: -60px;
+  width: 140px; height: 140px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.05);
+}
+.header-title { font-family: 'Bitter', serif; font-size: 32px; font-weight: 700; letter-spacing: -0.5px; }
+.header-sub { font-size: 13px; opacity: 0.75; margin-top: 2px; }
+.header-badge {
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 20px;
+  padding: 4px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+/* Nav tabs */
+.tabs {
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  padding: 0 32px;
+  gap: 0;
+  overflow-x: auto;
+}
+.tab {
+  padding: 12px 20px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  white-space: nowrap;
+  transition: color 0.2s, border-color 0.2s;
+}
+.tab.active { color: var(--green); border-bottom-color: var(--green); }
+.tab:hover:not(.active) { color: var(--text); }
+/* Layout */
+.container { max-width: 1200px; margin: 0 auto; padding: 28px 32px; }
+.section { display: none; }
+.section.active { display: block; }
+/* Grid */
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 24px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 24px; }
+.grid-2-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 18px; margin-bottom: 24px; }
+/* Cards */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 20px;
+}
+.card-tight { padding: 14px 16px; }
+.metric-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+.metric-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); margin-bottom: 4px; }
+.metric-value { font-size: 26px; font-family: 'Bitter', serif; font-weight: 700; }
+.metric-unit { font-size: 13px; color: var(--muted); margin-left: 2px; }
+.metric-sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+/* Section titles */
+.sec-title {
+  font-family: 'Bitter', serif;
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sec-title .dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+  flex-shrink: 0;
+}
+/* Species badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+}
+.badge-kiwi { background: var(--kiwi-light); color: var(--kiwi); }
+.badge-hazel { background: var(--hazel-light); color: var(--hazel); }
+.badge-cherry { background: var(--cherry-light); color: var(--cherry); }
+.badge-truffle { background: var(--truffle-light); color: var(--truffle); }
+.badge-berry { background: #f0e8f8; color: #6a3a8a; }
+/* Table */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+th {
+  text-align: left;
+  padding: 8px 10px;
+  background: var(--card2);
+  font-weight: 500;
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  border-bottom: 1px solid var(--border);
+}
+td {
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(0,0,0,0.04);
+  vertical-align: middle;
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--card2); }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+/* Map SVG */
+.campo-map {
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+/* Cuartel card */
+.cuartel-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  cursor: pointer;
+  transition: box-shadow 0.2s, transform 0.1s;
+  position: relative;
+  overflow: hidden;
+}
+.cuartel-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); transform: translateY(-1px); }
+.cuartel-card .species-bar {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 4px;
+  border-radius: 10px 0 0 10px;
+}
+.cuartel-num { font-family: 'Bitter', serif; font-size: 22px; font-weight: 700; color: var(--muted); }
+.cuartel-name { font-size: 12px; font-weight: 500; margin-top: 2px; }
+.cuartel-meta { font-size: 11px; color: var(--muted); margin-top: 6px; display: flex; gap: 10px; flex-wrap: wrap; }
+.cuartel-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-bottom: 20px; }
+/* Progress bar */
+.prog-bar { height: 6px; border-radius: 3px; background: rgba(0,0,0,0.08); margin-top: 6px; overflow: hidden; }
+.prog-fill { height: 100%; border-radius: 3px; }
+/* Gantt */
+.gantt-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.gantt-label { font-size: 11px; min-width: 90px; color: var(--muted); text-align: right; }
+.gantt-track { flex: 1; height: 20px; background: rgba(0,0,0,0.05); border-radius: 4px; position: relative; overflow: hidden; }
+.gantt-bar {
+  position: absolute;
+  height: 100%;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+  font-size: 10px;
+  font-weight: 500;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.gantt-months { display: flex; gap: 0; margin-bottom: 4px; padding-left: 98px; }
+.gantt-month { flex: 1; font-size: 9px; text-align: center; color: var(--muted); text-transform: uppercase; letter-spacing: 0.3px; }
+/* Kiwi section */
+.kiwi-stat { display: flex; justify-content: space-between; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--border); }
+.kiwi-stat:last-child { border-bottom: none; }
+/* Alert/info boxes */
+.info-box {
+  background: var(--blue-light);
+  border-left: 3px solid var(--blue);
+  border-radius: 0 8px 8px 0;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  font-size: 12.5px;
+}
+.warn-box {
+  background: #fff8e1;
+  border-left: 3px solid #f59e0b;
+  border-radius: 0 8px 8px 0;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  font-size: 12.5px;
+}
+/* Donut legend */
+.legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+/* Scroll anchor tabs */
+.field-selector {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.field-btn {
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.field-btn.active { background: var(--green); color: #fff; border-color: var(--green); }
+.field-btn:hover:not(.active) { background: var(--card2); }
+/* Resource link cards */
+.resource-link {
+  display: flex;
+  gap: 12px;
+  padding: 14px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  text-decoration: none;
+  color: var(--text);
+  transition: box-shadow 0.15s;
+  align-items: flex-start;
+}
+.resource-link:hover { box-shadow: 0 3px 12px rgba(0,0,0,0.1); }
+.resource-icon {
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  background: var(--kiwi-light);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+/* Chart containers */
+.chart-wrap { position: relative; height: 260px; }
+.chart-wrap-sm { position: relative; height: 200px; }
+/* Pills */
+.pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 500;
+}
+/* Footer */
+.footer {
+  text-align: center;
+  padding: 24px;
+  color: var(--muted);
+  font-size: 11px;
+  border-top: 1px solid var(--border);
+  margin-top: 40px;
+}
+@media (max-width: 768px) {
+  .grid-4 { grid-template-columns: repeat(2, 1fr); }
+  .grid-3 { grid-template-columns: repeat(2, 1fr); }
+  .grid-2, .grid-2-1 { grid-template-columns: 1fr; }
+  .container { padding: 20px 16px; }
+  .header { padding: 20px 20px; }
+  .header-title { font-size: 24px; }
+}
+
+</style>
+</head>
+<body>
+<div class="header">
+  <div>
+    <div class="header-title">Campo Doña Cecilia</div>
+    <div class="header-sub">Predio agrícola · Región del Maule · 60 ha totales · 53.34 ha plantadas</div>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto;position:relative;z-index:1;">
+    <span class="header-badge">🥝 Kiwi Hayward</span>
+    <span class="header-badge">🌰 Avellano Giffoni</span>
+    <span class="header-badge">13 cuarteles</span>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab('resumen')">Resumen</div>
+  <div class="tab" onclick="showTab('cuarteles')">Cuarteles</div>
+  <div class="tab" onclick="showTab('mapa')">Mapa</div>
+  <div class="tab" onclick="showTab('produccion')">Producción</div>
+  <div class="tab" onclick="showTab('kiwi')">Kiwi</div>
+  <div class="tab" onclick="showTab('fenologia')">Fenología & Carta Gantt</div>
+  <div class="tab" onclick="showTab('recursos')">Recursos CDK</div>
+</div>
+
+<!-- ============ RESUMEN ============ -->
+<div id="tab-resumen" class="section active">
+<div class="container">
+
+  <div class="grid-4">
+    <div class="metric-card">
+      <div class="metric-label">Superficie Total</div>
+      <div class="metric-value">60 <span class="metric-unit">ha</span></div>
+      <div class="metric-sub">100% agrícola</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Superficie Plantada</div>
+      <div class="metric-value">53.34 <span class="metric-unit">ha</span></div>
+      <div class="metric-sub">88.9% utilización</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Kiwi (Hayward)</div>
+      <div class="metric-value">11.63 <span class="metric-unit">ha</span></div>
+      <div class="metric-sub">4 cuarteles · Portainjerto Bruno</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Avellano (Giffoni)</div>
+      <div class="metric-value">41.71 <span class="metric-unit">ha</span></div>
+      <div class="metric-sub">9 cuarteles · Sistema multieje</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="sec-title"><span class="dot"></span>Distribución de cultivos</div>
+      <div class="chart-wrap">
+        <canvas id="donut-main"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sec-title"><span class="dot"></span>Superficie por especie (ha)</div>
+      <div class="chart-wrap">
+        <canvas id="bar-especies"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-3">
+    <div class="card">
+      <div class="sec-title"><span class="dot"></span>Red de campos del predio</div>
+      <table>
+        <tr><th>Campo</th><th class="num">Total</th><th class="num">Plantada</th><th class="num">%Uso</th></tr>
+        <tr><td><strong>Doña Cecilia</strong></td><td class="num">60</td><td class="num">53.34</td><td class="num" style="color:var(--green)">89%</td></tr>
+        <tr><td>Doña Inés</td><td class="num">58.7</td><td class="num">43.06</td><td class="num">73%</td></tr>
+        <tr><td>Sta. María Avellanos</td><td class="num">35</td><td class="num">29.34</td><td class="num">84%</td></tr>
+        <tr><td>Sta. María Arándanos</td><td class="num">35.2</td><td class="num">26.6</td><td class="num">76%</td></tr>
+        <tr><td>Mariñico</td><td class="num">19</td><td class="num">6</td><td class="num" style="color:var(--amber)">32%</td></tr>
+        <tr><td>La Ponderosa</td><td class="num">47.5</td><td class="num">0</td><td class="num" style="color:var(--cherry)">0%</td></tr>
+        <tr style="font-weight:600;"><td>TOTAL</td><td class="num">255.4</td><td class="num">158.34</td><td class="num">62%</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <div class="sec-title"><span class="dot"></span>Estado de plantas · Kiwi DC</div>
+      <div class="kiwi-stat">
+        <span style="color:var(--muted);font-size:12px;">Cuartel 3 (0.93 ha)</span>
+        <span><strong>362</strong> vivas / 44 polinizantes · <span style="color:var(--cherry)">21 muertas</span></span>
+      </div>
+      <div class="kiwi-stat">
+        <span style="color:var(--muted);font-size:12px;">Cuartel 4 (1.84 ha)</span>
+        <span><strong>805</strong> vivas / 87 polinizantes · <span style="color:var(--cherry)">54 muertas</span></span>
+      </div>
+      <div class="kiwi-stat">
+        <span style="color:var(--muted);font-size:12px;">Cuartel 8 (1.99 ha)</span>
+        <span><strong>1045</strong> vivas / 121 polinizantes · <span style="color:var(--cherry)">108 muertas</span></span>
+      </div>
+      <div class="kiwi-stat">
+        <span style="color:var(--muted);font-size:12px;">Cuartel 10 (6.87 ha)</span>
+        <span><strong>3617</strong> vivas / 448 polinizantes · <span style="color:var(--cherry)">252 muertas</span></span>
+      </div>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:12px;color:var(--muted)">
+        Sistema: Parrón · Riego: Microaspersión · Marco: 5.5×4.5 o 4.5×3.5
+      </div>
+    </div>
+    <div class="card">
+      <div class="sec-title"><span class="dot"></span>Riego y producción sistémica</div>
+      <div style="margin-bottom:12px;">
+        <div style="font-size:12px;font-weight:500;margin-bottom:4px;">Sistema de riego</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <span class="badge badge-kiwi">💧 Microaspersión · Kiwis</span>
+          <span class="badge badge-hazel">💧 Goteo · Avellanos</span>
+        </div>
+      </div>
+      <div style="font-size:12px;font-weight:500;margin-bottom:6px;">Fertirriego Sumagic 5SC (dosis 1.5 L/ha)</div>
+      <table>
+        <tr><th>Sector</th><th class="num">Lts total/sector</th></tr>
+        <tr><td>Sector 7 (C1: 2.16ha)</td><td class="num">16.5</td></tr>
+        <tr><td>Sector 2 (C7: 2.44ha + C9)</td><td class="num">10.8</td></tr>
+        <tr><td>Sector 3 (C11: 8.58ha)</td><td class="num">12.9</td></tr>
+        <tr><td>Sector 5 (C12: 11.5ha)</td><td class="num">17.3</td></tr>
+      </table>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ============ CUARTELES ============ -->
+<div id="tab-cuarteles" class="section">
+<div class="container">
+  <div class="field-selector">
+    <span class="field-btn active" onclick="filterCuartel('all',this)">Todos</span>
+    <span class="field-btn" onclick="filterCuartel('AVELLANO',this)">🌰 Avellano</span>
+    <span class="field-btn" onclick="filterCuartel('KIWI',this)">🥝 Kiwi</span>
+  </div>
+
+  <!-- Table view -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="sec-title"><span class="dot"></span>Detalle completo por cuartel · Campo Doña Cecilia</div>
+    <div class="table-wrap">
+      <table id="cuartel-table">
+        <thead>
+          <tr>
+            <th>C#</th>
+            <th>Especie</th>
+            <th>Variedad</th>
+            <th>Portainjerto</th>
+            <th class="num">Ha</th>
+            <th>Marco</th>
+            <th>Año</th>
+            <th>Sistema</th>
+            <th>Riego</th>
+            <th class="num">Vivas</th>
+            <th class="num">Poliniz.</th>
+            <th class="num">Muertas</th>
+            <th class="num">Total</th>
+            <th>Formación</th>
+          </tr>
+        </thead>
+        <tbody id="cuartel-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="sec-title" style="margin-top:24px;"><span class="dot"></span>Tarjetas de cuartel</div>
+  <div class="cuartel-grid" id="cuartel-cards"></div>
+
+</div>
+</div>
+
+<!-- ============ MAPA ============ -->
+<div id="tab-mapa" class="section">
+<div class="container">
+  <div class="grid-2-1">
+    <div>
+      <div class="sec-title"><span class="dot"></span>Mapa real georeferenciado &middot; Campo Do&ntilde;a Cecilia</div>
+      <div class="info-box">
+        &nbsp;Pol&iacute;gonos exactos del archivo KMZ &middot; Lat -35.635&deg;, Lon -71.651&deg; &middot; Regi&oacute;n del Maule &middot; Haz click en cualquier cuartel para ver su detalle
+      </div>
+      <div style="height:520px;border-radius:12px;overflow:hidden;border:1px solid var(--border);">
+        <div id="leaflet-map" style="height:100%;width:100%;"></div>
+      </div>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:11px;color:var(--muted);">
+        <span style="display:flex;align-items:center;gap:5px;"><span style="width:14px;height:14px;border-radius:2px;background:#7ab648;border:2px solid #4a8e20;display:inline-block;"></span>Kiwi Hayward</span>
+        <span style="display:flex;align-items:center;gap:5px;"><span style="width:14px;height:14px;border-radius:2px;background:#c8a96e;border:2px solid #8a6a3a;display:inline-block;"></span>Avellano Giffoni</span>
+        <span style="display:flex;align-items:center;gap:5px;"><span style="width:14px;height:14px;border-radius:2px;background:rgba(58,110,47,0.1);border:2px dashed #3a6e2f;display:inline-block;"></span>Per&iacute;metro campo</span>
+      </div>
+    </div>
+    <div>
+      <div class="sec-title"><span class="dot"></span>Cuarteles destacados</div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div class="card card-tight">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <span style="font-weight:600;">Cuartel 12 &middot; Avellano</span>
+            <span class="badge badge-hazel">11.50 ha</span>
+          </div>
+          <div style="font-size:11px;color:var(--muted);">Mayor cuartel del campo &middot; Plantado 2017 &middot; Marco 5x3 &middot; Goteo &middot; Multieje</div>
+          <div class="prog-bar"><div class="prog-fill" style="width:99%;background:var(--green-mid);"></div></div>
+          <div style="font-size:10px;color:var(--muted);margin-top:3px;">4,187 plantas vivas &middot; 22 muertas</div>
+        </div>
+        <div class="card card-tight">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <span style="font-weight:600;">Cuartel 10 &middot; Kiwi</span>
+            <span class="badge badge-kiwi">6.87 ha</span>
+          </div>
+          <div style="font-size:11px;color:var(--muted);">Mayor cuartel de kiwi &middot; Plantado 1986 &middot; Marco 4.5x3.5 &middot; Microasp. &middot; Parr&oacute;n</div>
+          <div class="prog-bar"><div class="prog-fill" style="width:90%;background:var(--kiwi);"></div></div>
+          <div style="font-size:10px;color:var(--muted);margin-top:3px;">3,617 hembras &middot; 448 machos &middot; 252 muertas</div>
+        </div>
+        <div class="card card-tight">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <span style="font-weight:600;">Cuartel 11 &middot; Avellano</span>
+            <span class="badge badge-hazel">8.58 ha</span>
+          </div>
+          <div style="font-size:11px;color:var(--muted);">Plantado 2017 &middot; Marco 5x3 &middot; Goteo &middot; Multieje</div>
+          <div class="prog-bar"><div class="prog-fill" style="width:99%;background:var(--green-mid);"></div></div>
+          <div style="font-size:10px;color:var(--muted);margin-top:3px;">3,880 plantas vivas &middot; 21 muertas</div>
+        </div>
+        <div class="card card-tight">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <span style="font-weight:600;">Cuartel 9 &middot; Avellano</span>
+            <span class="badge badge-hazel">7.19 ha</span>
+          </div>
+          <div style="font-size:11px;color:var(--muted);">Plantado 2017 &middot; Marco 5x3 &middot; Goteo &middot; Multieje</div>
+          <div class="prog-bar"><div class="prog-fill" style="width:99%;background:var(--green-mid);"></div></div>
+          <div style="font-size:10px;color:var(--muted);margin-top:3px;">4,225 plantas vivas &middot; 5 muertas</div>
+        </div>
+        <div class="card card-tight" style="background:var(--amber-light);border-color:rgba(184,126,26,0.2);">
+          <div style="font-size:11px;color:var(--amber);font-weight:600;margin-bottom:4px;">&nbsp;Cuarteles con mayor mortandad</div>
+          <div style="font-size:11px;color:var(--muted);">C7: 122 muertas (8%) &middot; C10 kiwi: 252 muertas (6.2%)</div>
+          <div style="font-size:11px;color:var(--muted);">C8 kiwi: 108 muertas (9.3%) &middot; C2 avellano: 49 muertas</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+<!-- ============ PRODUCCIÓN ============ -->
+<div id="tab-produccion" class="section">
+<div class="container">
+  <div class="grid-4" style="margin-bottom:20px;">
+    <div class="metric-card">
+      <div class="metric-label">Kg producidos 2023</div>
+      <div class="metric-value">1.01M <span class="metric-unit">kg</span></div>
+      <div class="metric-sub" style="color:var(--green)">↑ 16.4% vs 2022</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Ingresos 2023 (est.)</div>
+      <div class="metric-value">USD 1.79M</div>
+      <div class="metric-sub" style="color:var(--green)">↑ 23.5% vs 2022</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Cosecheros 2023</div>
+      <div class="metric-value">350</div>
+      <div class="metric-sub">Sin cambio vs 2022</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Rendimiento</div>
+      <div class="metric-value">8.1 <span class="metric-unit">t/ha</span></div>
+      <div class="metric-sub">Sobre 125.7 ha plantadas</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="sec-title"><span class="dot"></span>Evolución de producción 2017–2023</div>
+      <div class="chart-wrap">
+        <canvas id="chart-prod"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sec-title"><span class="dot"></span>Ingresos estimados USD</div>
+      <div class="chart-wrap">
+        <canvas id="chart-ingresos"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="sec-title"><span class="dot"></span>Hectáreas plantadas acumuladas</div>
+      <div class="chart-wrap-sm">
+        <canvas id="chart-ha"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sec-title"><span class="dot"></span>Cosecheros por temporada</div>
+      <div class="chart-wrap-sm">
+        <canvas id="chart-cosecheros"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="sec-title"><span class="dot"></span>Histórico completo de producción</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Año</th>
+            <th class="num">Ha Plantadas</th>
+            <th class="num">Kg Producidos</th>
+            <th class="num">Ingresos USD</th>
+            <th class="num">USD/kg</th>
+            <th class="num">t/ha</th>
+            <th class="num">Cosecheros</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>2016</td><td class="num">17.41</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td></tr>
+          <tr><td>2017</td><td class="num">55.67</td><td class="num">395,722</td><td class="num">$174,118</td><td class="num">$0.44</td><td class="num">7.1</td><td class="num">44</td></tr>
+          <tr><td>2018</td><td class="num">81.38</td><td class="num">438,179</td><td class="num">$166,508</td><td class="num">$0.38</td><td class="num">5.4</td><td class="num">52</td></tr>
+          <tr><td>2019</td><td class="num">82.51</td><td class="num">451,369</td><td class="num">$230,198</td><td class="num">$0.51</td><td class="num">5.5</td><td class="num">60</td></tr>
+          <tr><td>2020</td><td class="num">111.85</td><td class="num">625,723</td><td class="num">$375,801</td><td class="num">$0.60</td><td class="num">5.6</td><td class="num">85</td></tr>
+          <tr><td>2021</td><td class="num">125.70</td><td class="num">799,472</td><td class="num">$822,608</td><td class="num">$1.03</td><td class="num">6.4</td><td class="num">160</td></tr>
+          <tr><td>2022</td><td class="num">125.70</td><td class="num">870,334</td><td class="num">$1,446,908</td><td class="num">$1.66</td><td class="num">6.9</td><td class="num">350</td></tr>
+          <tr style="background:var(--green-light);font-weight:600;"><td>2023</td><td class="num">125.70</td><td class="num">1,013,221</td><td class="num">$1,787,293</td><td class="num" style="color:var(--green)">$1.76</td><td class="num">8.1</td><td class="num">350</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ============ KIWI ============ -->
+<div id="tab-kiwi" class="section">
+<div class="container">
+  <div class="grid-4" style="margin-bottom:20px;">
+    <div class="metric-card">
+      <div class="metric-label">Superficie Kiwi · DC</div>
+      <div class="metric-value">11.63 <span class="metric-unit">ha</span></div>
+      <div class="metric-sub">4 cuarteles · Hayward</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Total plantas hembras</div>
+      <div class="metric-value">5,829</div>
+      <div class="metric-sub">C3+C4+C8+C10</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Total polinizantes</div>
+      <div class="metric-value">700</div>
+      <div class="metric-sub">Macho Bruno ~12%</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Plantas muertas</div>
+      <div class="metric-value">435</div>
+      <div class="metric-sub" style="color:var(--cherry)">6.9% del total</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="sec-title"><span class="dot"></span>Catastro por cuartel · 2023 vs 2025</div>
+      <div class="chart-wrap">
+        <canvas id="chart-kiwi"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sec-title"><span class="dot"></span>Relación hembra/macho por cuartel</div>
+      <div class="chart-wrap">
+        <canvas id="chart-sex"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="sec-title"><span class="dot"></span>Doña Inés · Kiwi (cuarteles 7–10)</div>
+      <table>
+        <thead>
+          <tr><th>Cuartel</th><th class="num">Ha</th><th class="num">Hembras 23</th><th class="num">Machos 23</th><th class="num">Muertas</th><th class="num">Hembras 25</th><th>Marco</th><th>Año</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>7</td><td class="num">1.30</td><td class="num">850</td><td class="num">101</td><td class="num" style="color:var(--cherry)">25</td><td class="num">854</td><td>4.5×3</td><td>1989</td></tr>
+          <tr><td>8</td><td class="num">1.52</td><td class="num">953</td><td class="num">126</td><td class="num" style="color:var(--cherry)">60</td><td class="num">961</td><td>4.5×3</td><td>1989</td></tr>
+          <tr><td>9</td><td class="num">1.51</td><td class="num">998</td><td class="num">87</td><td class="num" style="color:var(--cherry)">67</td><td class="num">973</td><td>4.5×3</td><td>1989</td></tr>
+          <tr><td>10</td><td class="num">1.45</td><td class="num">961</td><td class="num">100</td><td class="num" style="color:var(--cherry)">39</td><td class="num">941</td><td>4.5×3</td><td>1989</td></tr>
+          <tr style="font-weight:600;"><td>Total</td><td class="num">5.78</td><td class="num">3,762</td><td class="num">414</td><td class="num" style="color:var(--cherry)">191</td><td class="num">3,729</td><td></td><td></td></tr>
+        </tbody>
+      </table>
+      <div style="margin-top:10px;font-size:11px;color:var(--muted);">Sistema: Parrón · Riego: Microaspersión · Portainjerto: Bruno</div>
+    </div>
+    <div class="card">
+      <div class="sec-title"><span class="dot"></span>Información técnica · Variedad Hayward</div>
+      <div class="info-box">
+        <strong>Variedad principal:</strong> Hayward — estándar mundial para kiwi verde. Requiere ~700h de frío invernal. Plena flor: septiembre–octubre. Cosecha: abril–junio (Chile).
+      </div>
+      <div class="kiwi-stat">
+        <span style="font-size:12px;color:var(--muted);">Portainjerto</span>
+        <strong>Bruno</strong>
+      </div>
+      <div class="kiwi-stat">
+        <span style="font-size:12px;color:var(--muted);">Sistema conducción</span>
+        <strong>Parrón (T-bar)</strong>
+      </div>
+      <div class="kiwi-stat">
+        <span style="font-size:12px;color:var(--muted);">Riego</span>
+        <strong>Microaspersión</strong>
+      </div>
+      <div class="kiwi-stat">
+        <span style="font-size:12px;color:var(--muted);">Año plantación (DC)</span>
+        <strong>1984–1986</strong>
+      </div>
+      <div class="kiwi-stat">
+        <span style="font-size:12px;color:var(--muted);">Marcos</span>
+        <strong>5.5×4.5 / 4.5×3.5</strong>
+      </div>
+      <div class="kiwi-stat">
+        <span style="font-size:12px;color:var(--muted);">% polinizantes recomendado</span>
+        <strong>~12% (1 macho × 8 hembras)</strong>
+      </div>
+      <div class="warn-box" style="margin-top:12px;margin-bottom:0;">
+        <strong>Alerta PSA:</strong> Revisar protocolo CDK para Pseudomonas syringae pv. actinidiae. Aplicar programa primavera–verano. Ver sección Recursos CDK.
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ============ FENOLOGÍA & GANTT ============ -->
+<div id="tab-fenologia" class="section">
+<div class="container">
+
+  <div class="sec-title"><span class="dot"></span>Carta Gantt — Fenología y Cosecha por especie</div>
+  <div class="info-box">
+    Datos extraídos del catastro 2022–2024. Fechas reales registradas para cerezos Doña Inés. Kiwi y avellano según estándares varietales regionales.
+  </div>
+
+  <div class="card" style="margin-bottom:20px;">
+    <div style="font-weight:500;font-size:13px;margin-bottom:14px;">Kiwi Hayward — Ciclo anual</div>
+    <div class="gantt-months">
+      <div class="gantt-month">Jul</div><div class="gantt-month">Ago</div><div class="gantt-month">Sep</div>
+      <div class="gantt-month">Oct</div><div class="gantt-month">Nov</div><div class="gantt-month">Dic</div>
+      <div class="gantt-month">Ene</div><div class="gantt-month">Feb</div><div class="gantt-month">Mar</div>
+      <div class="gantt-month">Abr</div><div class="gantt-month">May</div><div class="gantt-month">Jun</div>
+    </div>
+    <div class="gantt-row">
+      <div class="gantt-label">Poda</div>
+      <div class="gantt-track"><div class="gantt-bar" style="left:0%;width:16.6%;background:#6b6a62;">Jul–Ago</div></div>
+    </div>
+    <div class="gantt-row">
+      <div class="gantt-label">Brotación</div>
+      <div class="gantt-track"><div class="gantt-bar" style="left:16.6%;width:16.6%;background:#7a9e4a;">Sep–Oct</div></div>
+    </div>
+    <div class="gantt-row">
+      <div class="gantt-label">Plena flor</div>
+      <div class="gantt-track"><div class="gantt-bar" style="left:25%;width:8.3%;background:#e8a020;">Oct</div></div>
+    </div>
+    <div class="gantt-row">
+      <div class="gantt-label">Cuaja / crecer</div>
+      <div class="gantt-track"><div class="gantt-bar" style="left:33.3%;width:25%;background:#5a9e4a;">Nov–Ene</div></div>
+    </div>
+    <div class="gantt-row">
+      <div class="gantt-label">Maduración</div>
+      <div class="gantt-track"><div class="gantt-bar" style="left:58.3%;width:25%;background:#3a8a3a;">Feb–Abr</div></div>
+    </div>
+    <div class="gantt-row">
+      <div class="gantt-label">Cosecha</div>
+      <div class="gantt-track"><div class="gantt-bar" style="left:75%;width:16.6%;background:#2a6e2f;">Abr–May</div></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:20px;">
+    <div style="font-weight:500;font-size:13px;margin-bottom:14px;">Avellano Giffoni — Ciclo anual</div>
+    <div class="gantt-months">
+      <div class="gantt-month">Jul</div><div class="gantt-month">Ago</div><div class="gantt-month">Sep</div>
+      <div class="gantt-month">Oct</div><div class="gantt-month">Nov</div><div class="gantt-month">Dic</div>
+      <div class="gantt-month">Ene</div><div class="gantt-month">Feb</div><div class="gantt-month">Mar</div>
+      <div class="gantt-month">Abr</div><div class="gantt-month">May</div><div class="gantt-month">Jun</div>
+    </div>
+    <div class="gantt-row">
+      <div class="gantt-label">Poda</div>
+      <div class="gantt-track"><div class="gantt-bar" style="left:0%;width:16.6%;background:#6b6a62;">Jul–Ago</div></div>
+    </div>
+    <div class="gantt-row">
+      <div class="gantt-label">Floración</div>
+      <div class="gantt-track"><div class="gantt-bar" style="left:8.3%;width:16.6%;background:#b87e1a;">Ago–Oct</div></div>
+    </div>
+    <div class="gantt-row">
+      <div class="gantt-label">Cuaja</div>
+      <div class="gantt-track"><div class="gantt-bar" style="left:25%;width:25%;background:#8a6a3a;">Oct–Dic</div></div>
+    </div>
+    <div class="gantt-row">
+      <div class="gantt-label">Llenado fruto</div>
+      <div class="gantt-track"><div class="gantt-bar" style="left:50%;width:33.3%;background:#7a5a2a;">Ene–Mar</div></div>
+    </div>
+    <div class="gantt-row">
+      <div class="gantt-label">Cosecha</div>
+      <div class="gantt-track"><div class="gantt-bar" style="left:75%;width:16.6%;background:#5a3a1a;">Abr</div></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:20px;">
+    <div style="font-weight:500;font-size:13px;margin-bottom:14px;">Cerezos Doña Inés (Lapins, Regina, Kordia, Skeena, Santina) — Fechas reales</div>
+    <div class="gantt-months">
+      <div class="gantt-month">Ago</div><div class="gantt-month">Sep</div><div class="gantt-month">Oct</div>
+      <div class="gantt-month">Nov</div><div class="gantt-month">Dic</div><div class="gantt-month">Ene</div>
+    </div>
+    <div class="gantt-row">
+      <div class="gantt-label">Lapins · Plena flor</div>
+      <div class="gantt-track"><div class="gantt-bar" style="left:16.6%;width:8%;background:#943f3f;">21-Sep</div></div>
+    </div>
+    <div class="gantt-row">
+      <div class="gantt-label">Lapins · Cosecha</div>
+      <div class="gantt-track"><div class="gantt-bar" style="left:58%;width:25%;background:#7a2a2a;">9–13 Dic</div></div>
+    </div>
+    <div class="gantt-row">
+      <div class="gantt-label">Regina · Plena flor</div>
+      <div class="gantt-track"><div class="gantt-bar" style="left:25%;width:8%;background:#c05050;">5-Oct</div></div>
+    </div>
+    <div class="gantt-row">
+      <div class="gantt-label">Regina · Cosecha</div>
+      <div class="gantt-track"><div class="gantt-bar" style="left:66%;width:22%;background:#8a3535;">16–21 Dic</div></div>
+    </div>
+    <div class="gantt-row">
+      <div class="gantt-label">Kordia · Plena flor</div>
+      <div class="gantt-track"><div class="gantt-bar" style="left:25%;width:8%;background:#c05050;">5-Oct</div></div>
+    </div>
+    <div class="gantt-row">
+      <div class="gantt-label">Kordia · Cosecha</div>
+      <div class="gantt-track"><div class="gantt-bar" style="left:66%;width:16%;background:#8a3535;">13–16 Dic</div></div>
+    </div>
+    <div class="gantt-row">
+      <div class="gantt-label">Skeena · Cosecha</div>
+      <div class="gantt-track"><div class="gantt-bar" style="left:66%;width:14%;background:#9a3535;">16–17 Dic</div></div>
+    </div>
+    <div class="gantt-row">
+      <div class="gantt-label">Santina (2024)</div>
+      <div class="gantt-track"><div class="gantt-bar" style="left:28%;width:8%;background:#e07a2a;">10-Oct</div></div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="sec-title"><span class="dot" style="background:var(--cherry)"></span>Rendimiento cerezos 2024</div>
+      <table>
+        <thead>
+          <tr><th>Variedad</th><th>Cuarteles</th><th class="num">Frutos/planta</th><th class="num">kg/ha</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="badge badge-cherry">Lapins</span></td><td>13–18</td><td class="num">~1,820</td><td class="num">~20,700</td></tr>
+          <tr><td><span class="badge badge-cherry">Regina</span></td><td>19–23</td><td class="num">~1,600</td><td class="num">~22,500</td></tr>
+          <tr><td><span class="badge badge-cherry">Kordia</span></td><td>19–23</td><td class="num">—</td><td class="num">—</td></tr>
+          <tr><td><span class="badge badge-cherry">Skeena</span></td><td>19–23</td><td class="num">—</td><td class="num">—</td></tr>
+          <tr><td><span class="badge badge-cherry">Santina</span></td><td>24–25</td><td class="num">—</td><td class="num">—</td></tr>
+        </tbody>
+      </table>
+      <div style="margin-top:8px;font-size:11px;color:var(--muted);">Peso fruto promedio: 11g (Lapins/Regina). Portainjertos: Colt (Lapins/Santina), Gisela (Regina/Kordia/Skeena).</div>
+    </div>
+    <div class="card">
+      <div class="sec-title"><span class="dot" style="background:var(--kiwi)"></span>Parámetros fenológicos kiwi Doña Inés 2022</div>
+      <table>
+        <thead>
+          <tr><th>Cuartel</th><th>Plena flor 2022</th><th>Inicio cosecha</th><th>Término cosecha</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>DI-7 a DI-10</td><td colspan="3" style="color:var(--muted);font-style:italic;">Sin datos registrados 2022</td></tr>
+        </tbody>
+      </table>
+      <div class="info-box" style="margin-top:12px;margin-bottom:0;">
+        Plena flor 2023 registrada en catastro. Para fenología detallada consultar <strong>Programa PAM</strong> del Comité del Kiwi (pam.comitedelkiwi.cl).
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ============ RECURSOS CDK ============ -->
+<div id="tab-recursos" class="section">
+<style>
+/* CDK Resources interactive styles */
+.cdk-layout { display: grid; grid-template-columns: 220px 1fr; gap: 0; min-height: 560px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--card); margin-bottom: 24px; }
+.cdk-sidebar { background: var(--card2); border-right: 1px solid var(--border); padding: 0; }
+.cdk-sidebar-title { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.7px; color: var(--muted); padding: 16px 16px 8px; }
+.cdk-nav-item { display: flex; align-items: center; gap: 10px; padding: 11px 16px; cursor: pointer; border-left: 3px solid transparent; transition: all 0.15s; font-size: 12.5px; color: var(--text); }
+.cdk-nav-item:hover { background: rgba(0,0,0,0.04); }
+.cdk-nav-item.active { background: var(--card); border-left-color: var(--green); color: var(--green); font-weight: 500; }
+.cdk-nav-item .nav-icon { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
+.cdk-nav-item .nav-count { margin-left: auto; font-size: 10px; background: var(--border); color: var(--muted); border-radius: 10px; padding: 1px 6px; }
+.cdk-nav-item.active .nav-count { background: var(--green-light); color: var(--green); }
+.cdk-nav-divider { height: 1px; background: var(--border); margin: 6px 0; }
+.cdk-panel { padding: 24px 28px; overflow-y: auto; }
+.cdk-panel-section { display: none; }
+.cdk-panel-section.active { display: block; }
+.cdk-panel-header { margin-bottom: 18px; }
+.cdk-panel-header h2 { font-family: 'Bitter', serif; font-size: 17px; font-weight: 600; margin-bottom: 4px; }
+.cdk-panel-header p { font-size: 12px; color: var(--muted); line-height: 1.5; }
+/* Resource cards */
+.rcard { border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; display: flex; gap: 14px; align-items: flex-start; transition: all 0.15s; background: var(--card); cursor: pointer; text-decoration: none; color: var(--text); }
+.rcard:hover { border-color: var(--green); box-shadow: 0 2px 12px rgba(58,110,47,0.1); transform: translateY(-1px); }
+.rcard.danger:hover { border-color: var(--cherry); box-shadow: 0 2px 12px rgba(148,63,63,0.12); }
+.rcard.blue:hover { border-color: var(--blue); box-shadow: 0 2px 12px rgba(42,95,143,0.1); }
+.rcard-icon { width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+.rcard-icon.green { background: var(--green-light); }
+.rcard-icon.red { background: #faeaea; }
+.rcard-icon.blue { background: var(--blue-light); }
+.rcard-icon.amber { background: var(--amber-light); }
+.rcard-body { flex: 1; min-width: 0; }
+.rcard-title { font-weight: 600; font-size: 13px; margin-bottom: 3px; }
+.rcard-desc { font-size: 11.5px; color: var(--muted); line-height: 1.5; margin-bottom: 6px; }
+.rcard-tags { display: flex; gap: 5px; flex-wrap: wrap; }
+.rtag { font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 500; }
+.rtag-green { background: var(--kiwi-light); color: var(--kiwi); }
+.rtag-red { background: #faeaea; color: var(--cherry); }
+.rtag-blue { background: var(--blue-light); color: var(--blue); }
+.rtag-amber { background: var(--amber-light); color: var(--amber); }
+.rtag-gray { background: rgba(0,0,0,0.06); color: var(--muted); }
+.rcard-arrow { margin-left: auto; color: var(--muted); font-size: 16px; align-self: center; flex-shrink: 0; }
+/* Cross-ref panel */
+.crossref-box { background: var(--card2); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; }
+.crossref-box h4 { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+.crossref-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid rgba(0,0,0,0.04); font-size: 12px; }
+.crossref-row:last-child { border-bottom: none; }
+.crossref-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.crossref-link { color: var(--green); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; font-weight: 500; }
+.crossref-link:hover { color: var(--green-mid); }
+/* Alert banner */
+.alert-banner { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: 8px; margin-bottom: 14px; font-size: 12px; }
+.alert-banner.warn { background: #fff8e1; border: 1px solid #f59e0b; }
+.alert-banner.danger { background: #faeaea; border: 1px solid var(--cherry); }
+.alert-banner.info { background: var(--blue-light); border: 1px solid var(--blue); }
+.alert-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+/* Checklist */
+.checklist-item { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(0,0,0,0.04); font-size: 12.5px; align-items: flex-start; }
+.checklist-item:last-child { border-bottom: none; }
+.check-circle { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; margin-top: 1px; }
+.check-ok { background: var(--green-light); color: var(--green); }
+.check-warn { background: var(--amber-light); color: var(--amber); }
+.check-danger { background: #faeaea; color: var(--cherry); }
+/* Timeline */
+.timeline { position: relative; padding-left: 20px; }
+.timeline::before { content:''; position:absolute; left:6px; top:0; bottom:0; width:2px; background: var(--border); border-radius:2px; }
+.tl-item { position: relative; padding: 0 0 16px 16px; }
+.tl-item::before { content:''; position:absolute; left:-8px; top:4px; width:10px; height:10px; border-radius:50%; background: var(--card); border: 2px solid var(--green); }
+.tl-item.danger::before { border-color: var(--cherry); }
+.tl-date { font-size: 10px; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 3px; }
+.tl-text { font-size: 12.5px; font-weight: 500; margin-bottom: 2px; }
+.tl-sub { font-size: 11px; color: var(--muted); }
+/* Simulator buttons */
+.sim-btn { padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:var(--card);font-size:12px;font-weight:500;cursor:pointer;transition:all 0.15s; }
+.sim-btn:hover { background:var(--card2); }
+.sim-btn.active { background:var(--green);color:#fff;border-color:var(--green); }
+/* PSA risk bar */
+.psa-bar-wrap { height:8px;background:rgba(0,0,0,0.08);border-radius:4px;overflow:hidden;margin-top:4px; }
+.psa-bar { height:100%;border-radius:4px;transition:width 0.4s ease; }
+/* Rendimiento metric mini */
+.rend-metric { background:var(--card2);border-radius:8px;padding:10px 12px;text-align:center; }
+.rend-metric-val { font-family:'Bitter',serif;font-size:18px;font-weight:700; }
+.rend-metric-lbl { font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;margin-top:2px; }
+@media (max-width: 768px) {
+  .cdk-layout { grid-template-columns: 1fr; }
+}
+</style>
+
+<div class="container">
+  <div class="sec-title"><span class="dot" style="background:var(--kiwi)"></span>Centro de Documentación CDK — Sistema interactivo</div>
+
+  <div class="cdk-layout">
+    <!-- SIDEBAR NAV -->
+    <div class="cdk-sidebar">
+      <div class="cdk-sidebar-title">Categorías</div>
+      <div class="cdk-nav-item active" onclick="cdkNav('produccion',this)">
+        <span class="nav-icon">📖</span> Producción
+        <span class="nav-count">3</span>
+      </div>
+      <div class="cdk-nav-item" onclick="cdkNav('poscosecha',this)">
+        <span class="nav-icon">📦</span> Poscosecha &amp; Calidad
+        <span class="nav-count">2</span>
+      </div>
+      <div class="cdk-nav-item" onclick="cdkNav('fitosanidad',this)">
+        <span class="nav-icon">🦠</span> PSA &amp; Fitosanidad
+        <span class="nav-count">3</span>
+      </div>
+      <div class="cdk-nav-item" onclick="cdkNav('exportacion',this)">
+        <span class="nav-icon">🌐</span> Exportación &amp; SA
+        <span class="nav-count">2</span>
+      </div>
+      <div class="cdk-nav-item" onclick="cdkNav('monitoreo',this)">
+        <span class="nav-icon">🌡️</span> Monitoreo PAM
+        <span class="nav-count">1</span>
+      </div>
+      <div class="cdk-nav-divider"></div>
+      <div class="cdk-sidebar-title">Por cuartel</div>
+      <div class="cdk-nav-item" onclick="cdkNav('c3c4',this)">
+        <span class="nav-icon">🥝</span> C3 &amp; C4 Kiwi
+        <span class="nav-count">4</span>
+      </div>
+      <div class="cdk-nav-item" onclick="cdkNav('c8c10',this)">
+        <span class="nav-icon">🥝</span> C8 &amp; C10 Kiwi
+        <span class="nav-count">5</span>
+      </div>
+      <div class="cdk-nav-divider"></div>
+      <div class="cdk-sidebar-title">Por tema</div>
+      <div class="cdk-nav-item" onclick="cdkNav('calendario',this)">
+        <span class="nav-icon">📅</span> Calendario de acciones
+      </div>
+      <div class="cdk-nav-item" onclick="cdkNav('alertas',this)">
+        <span class="nav-icon">⚠️</span> Alertas activas
+        <span class="nav-count" style="background:#faeaea;color:var(--cherry)">2</span>
+      </div>
+      <div class="cdk-nav-divider"></div>
+      <div class="cdk-sidebar-title">Simuladores</div>
+      <div class="cdk-nav-item" onclick="cdkNav('sim-polinizantes',this)">
+        <span class="nav-icon">🌸</span> Polinizantes
+      </div>
+      <div class="cdk-nav-item" onclick="cdkNav('sim-rendimiento',this)">
+        <span class="nav-icon">📈</span> Rendimiento
+      </div>
+      <div class="cdk-nav-item" onclick="cdkNav('sim-psa',this)">
+        <span class="nav-icon">🦠</span> Riesgo PSA
+      </div>
+      <div class="cdk-nav-item" onclick="cdkNav('sim-gantt',this)">
+        <span class="nav-icon">🗓️</span> Plan fitosanitario
+      </div>
+    </div>
+
+    <!-- MAIN PANEL -->
+    <div class="cdk-panel">
+
+      <!-- PRODUCCION -->
+      <div class="cdk-panel-section active" id="cdk-produccion">
+        <div class="cdk-panel-header">
+          <h2>Manuales de Producción</h2>
+          <p>Publicaciones técnicas de uso referencial. Aplicación voluntaria. Directamente relevante para los cuarteles de kiwi Hayward del campo.</p>
+        </div>
+        <a class="rcard" href="https://www.comitedelkiwi.cl/wp-content/uploads/2024/01/manual_prod_cap0_6.pdf" target="_blank">
+          <div class="rcard-icon green">📖</div>
+          <div class="rcard-body">
+            <div class="rcard-title">Manual de Producción del Kiwi Chileno · Cap. 0–6</div>
+            <div class="rcard-desc">Establecimiento del huerto, manejo del suelo, poda de formación, riego, nutrición básica. Aplica al ciclo completo del campo.</div>
+            <div class="rcard-tags">
+              <span class="rtag rtag-green">Todos los cuarteles kiwi</span>
+              <span class="rtag rtag-gray">PDF oficial CDK</span>
+            </div>
+          </div>
+          <span class="rcard-arrow">↗</span>
+        </a>
+        <a class="rcard" href="https://www.comitedelkiwi.cl/wp-content/uploads/2024/01/manual_prod_cap7-13.pdf" target="_blank">
+          <div class="rcard-icon green">🌸</div>
+          <div class="rcard-body">
+            <div class="rcard-title">Polinizantes y Distribución · Cap. 7–13</div>
+            <div class="rcard-desc">Razón hembra:macho óptima, distribución espacial de machos en el parrón, manejo de plantas polinizantes, sincronía floral con Hayward.</div>
+            <div class="rcard-tags">
+              <span class="rtag rtag-green">C3 · C4 · C8 · C10</span>
+              <span class="rtag rtag-amber">% machos actual: ~12%</span>
+            </div>
+          </div>
+          <span class="rcard-arrow">↗</span>
+        </a>
+        <a class="rcard" href="https://www.comitedelkiwi.cl/wp-content/uploads/2024/01/manual_prod_cap14-22.pdf" target="_blank">
+          <div class="rcard-icon green">🧪</div>
+          <div class="rcard-body">
+            <div class="rcard-title">Fertilización · Cap. 14–22</div>
+            <div class="rcard-desc">Nutrición mineral, fertirrigación por goteo y microaspersión, análisis foliar y de suelo, programa de aplicaciones por fenología.</div>
+            <div class="rcard-tags">
+              <span class="rtag rtag-green">Todos los cuarteles kiwi</span>
+              <span class="rtag rtag-amber">Ver Sumagic 5SC (1.5 L/ha)</span>
+            </div>
+          </div>
+          <span class="rcard-arrow">↗</span>
+        </a>
+        <div class="crossref-box">
+          <h4>Cruces con datos del campo</h4>
+          <div class="crossref-row">
+            <div class="crossref-dot" style="background:var(--amber)"></div>
+            <span>C8 y C10 tienen plantación de <strong>1984–1986</strong> — verificar protocolo de poda en plantas maduras (Cap. 4)</span>
+          </div>
+          <div class="crossref-row">
+            <div class="crossref-dot" style="background:var(--cherry)"></div>
+            <span>C10 tiene <strong>252 plantas muertas (6.2%)</strong> — Cap. 3 recomienda reposición antes de temporada</span>
+          </div>
+          <div class="crossref-row">
+            <div class="crossref-dot" style="background:var(--kiwi)"></div>
+            <span>Fertirriego Sumagic 5SC activo en sectores 2, 3, 5 y 7 — alinear con tabla de fertilización Cap. 15</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- POSCOSECHA -->
+      <div class="cdk-panel-section" id="cdk-poscosecha">
+        <div class="cdk-panel-header">
+          <h2>Poscosecha &amp; Calidad</h2>
+          <p>Estándares de cosecha, manejo en frío, calibres de exportación y requisitos de calidad para Hayward chileno.</p>
+        </div>
+        <a class="rcard" href="https://www.comitedelkiwi.cl/wp-content/uploads/2024/01/manual_poscosecha_v2.pdf" target="_blank">
+          <div class="rcard-icon green">📦</div>
+          <div class="rcard-body">
+            <div class="rcard-title">Manual de Poscosecha y Calidad v2</div>
+            <div class="rcard-desc">Índices de cosecha (°Brix, firmeza), almacenamiento en frío, atmósfera controlada, calibres exportables, manejo de etileno. Estándar nacional CDK.</div>
+            <div class="rcard-tags">
+              <span class="rtag rtag-green">Hayward Doña Cecilia</span>
+              <span class="rtag rtag-green">Hayward Doña Inés</span>
+              <span class="rtag rtag-gray">PDF CDK v2</span>
+            </div>
+          </div>
+          <span class="rcard-arrow">↗</span>
+        </a>
+        <a class="rcard" href="https://www.comitedelkiwi.cl/wp-content/uploads/2025/03/FICHAS-TECNICAS-WEB.zip" target="_blank">
+          <div class="rcard-icon amber">📋</div>
+          <div class="rcard-body">
+            <div class="rcard-title">Fichas Técnicas 2025 — Nuevo</div>
+            <div class="rcard-desc">Fichas actualizadas por especie, variedad y problema específico. Incluye parámetros de calidad por mercado de destino (Europa, USA, Asia).</div>
+            <div class="rcard-tags">
+              <span class="rtag rtag-amber">Actualizado marzo 2025</span>
+              <span class="rtag rtag-gray">ZIP — múltiples fichas</span>
+            </div>
+          </div>
+          <span class="rcard-arrow">↗</span>
+        </a>
+        <div class="crossref-box">
+          <h4>Cruces con producción del campo</h4>
+          <div class="crossref-row">
+            <div class="crossref-dot" style="background:var(--kiwi)"></div>
+            <span>Producción 2023: <strong>1,013,221 kg</strong> sobre 17.41 ha kiwi → ~58 t/ha promedio. Verificar calibres con Manual Poscosecha Cap. 3</span>
+          </div>
+          <div class="crossref-row">
+            <div class="crossref-dot" style="background:var(--amber)"></div>
+            <span>USD/kg subió de $0.44 (2017) a $1.76 (2023) → revisar estándares de calidad para mantener precio premium</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- FITOSANIDAD / PSA -->
+      <div class="cdk-panel-section" id="cdk-fitosanidad">
+        <div class="cdk-panel-header">
+          <h2>PSA &amp; Fitosanidad</h2>
+          <p>Pseudomonas syringae pv. actinidiae — enfermedad prioritaria. El CDK y SAG mantienen una "Estrategia País" de vigilancia activa.</p>
+        </div>
+        <div class="alert-banner danger">
+          <span class="alert-icon">🚨</span>
+          <div><strong>Alerta activa:</strong> Monitoreo PSA obligatorio en temporada primavera–verano. Los cuarteles de kiwi de <strong>Doña Cecilia (C3, C4, C8, C10)</strong> y <strong>Doña Inés (C7–C10)</strong> deben incluirse en el programa fitosanitario.</div>
+        </div>
+        <a class="rcard danger" href="https://www.comitedelkiwi.cl/wp-content/uploads/2024/10/Instructivo-Alerta-Psa-Kiwis-Sept.2022.pdf" target="_blank">
+          <div class="rcard-icon red">⚠️</div>
+          <div class="rcard-body">
+            <div class="rcard-title">Alerta Especial PSA — Programa Primavera-Verano 2022–2023</div>
+            <div class="rcard-desc">Instructivo oficial de aplicaciones preventivas y curativas en salida de invierno. Productos, dosis y frecuencias recomendadas por SAG/CDK.</div>
+            <div class="rcard-tags">
+              <span class="rtag rtag-red">Acción en septiembre</span>
+              <span class="rtag rtag-red">C3 · C4 · C8 · C10</span>
+            </div>
+          </div>
+          <span class="rcard-arrow">↗</span>
+        </a>
+        <a class="rcard danger" href="https://www.comitedelkiwi.cl/wp-content/uploads/2024/10/CONTROL-DE-PSA-SALIDA-DE-INVIERNO-2023-1.pdf" target="_blank">
+          <div class="rcard-icon red">❄️</div>
+          <div class="rcard-body">
+            <div class="rcard-title">Control PSA — Salida de Invierno 2023</div>
+            <div class="rcard-desc">Protocolo crítico de brotación: período de mayor susceptibilidad a infección. Incluye monitoreo visual, muestreo y umbrales de acción.</div>
+            <div class="rcard-tags">
+              <span class="rtag rtag-red">Julio–agosto</span>
+              <span class="rtag rtag-gray">Aplicar antes de brotación</span>
+            </div>
+          </div>
+          <span class="rcard-arrow">↗</span>
+        </a>
+        <a class="rcard danger" href="https://www.comitedelkiwi.cl/wp-content/uploads/2024/10/DOC.TECNICO-CONTROL-DE-PSA-DEL-KIWI-INICIO-DE-PRIMAVERA-2024.pdf" target="_blank">
+          <div class="rcard-icon red">🌱</div>
+          <div class="rcard-body">
+            <div class="rcard-title">Control PSA — Inicio Primavera 2024</div>
+            <div class="rcard-desc">Documento técnico más reciente. Aplicaciones preventivas en brotación, manejo de cancros activos, eliminación de material infectado.</div>
+            <div class="rcard-tags">
+              <span class="rtag rtag-red">Más reciente</span>
+              <span class="rtag rtag-red">Septiembre–octubre</span>
+            </div>
+          </div>
+          <span class="rcard-arrow">↗</span>
+        </a>
+        <div class="crossref-box">
+          <h4>Cuarteles con mayor riesgo</h4>
+          <div class="crossref-row">
+            <div class="crossref-dot" style="background:var(--cherry)"></div>
+            <span><strong>C8 DC:</strong> 108 muertas (9.3%) — mortandad elevada, evaluar si PSA es factor contribuyente</span>
+          </div>
+          <div class="crossref-row">
+            <div class="crossref-dot" style="background:var(--cherry)"></div>
+            <span><strong>C10 DC:</strong> 252 muertas (6.2%) — el más grande del campo, prioridad de monitoreo</span>
+          </div>
+          <div class="crossref-row">
+            <div class="crossref-dot" style="background:var(--amber)"></div>
+            <span>Plantaciones <strong>1984–1986</strong> (C3, C4, C8, C10) — plantas maduras con menor vigor, mayor susceptibilidad</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- EXPORTACION -->
+      <div class="cdk-panel-section" id="cdk-exportacion">
+        <div class="cdk-panel-header">
+          <h2>Exportación &amp; Systems Approach</h2>
+          <p>El SA es un tratamiento cuarentenario alternativo a fumigación para control de Brevipalpus chilensis. Habilitante para mercados USA, Brasil, Corea y China.</p>
+        </div>
+        <div class="alert-banner info">
+          <span class="alert-icon">ℹ️</span>
+          <div>El campo produjo <strong>USD 1,787,293</strong> en 2023 (USD 1.76/kg). La certificación SA puede abrir o mantener mercados de mayor valor. Verificar si el predio está registrado en el programa SAG.</div>
+        </div>
+        <a class="rcard blue" href="https://www.comitedelkiwi.cl/wp-content/uploads/2023/07/ProtocoloSystemsApproachSAG.pdf" target="_blank">
+          <div class="rcard-icon blue">🌐</div>
+          <div class="rcard-body">
+            <div class="rcard-title">Protocolo Systems Approach — SAG Chile</div>
+            <div class="rcard-desc">Requisitos para certificación de baja prevalencia de Brevipalpus chilensis. Monitoreo de huerto, laboratorios autorizados, plazos y procedimientos de inspección.</div>
+            <div class="rcard-tags">
+              <span class="rtag rtag-blue">USA · Brasil</span>
+              <span class="rtag rtag-blue">Cuarentenario alternativo</span>
+            </div>
+          </div>
+          <span class="rcard-arrow">↗</span>
+        </a>
+        <a class="rcard blue" href="https://www.comitedelkiwi.cl/wp-content/uploads/2023/07/Circular347.pdf" target="_blank">
+          <div class="rcard-icon blue">🇧🇷</div>
+          <div class="rcard-body">
+            <div class="rcard-title">Circular 347 — SA para exportación a Brasil</div>
+            <div class="rcard-desc">Entrada en vigencia del Systems Approach para el mercado brasileño. Requisitos específicos, laboratorios habilitados y empresas muestreadoras autorizadas.</div>
+            <div class="rcard-tags">
+              <span class="rtag rtag-blue">Mercado Brasil</span>
+              <span class="rtag rtag-gray">Circular oficial SAG</span>
+            </div>
+          </div>
+          <span class="rcard-arrow">↗</span>
+        </a>
+        <a class="rcard blue" href="https://www.comitedelkiwi.cl/wp-content/uploads/2023/07/Listado-de-Laboratorios-CertificacionSDP.pdf" target="_blank">
+          <div class="rcard-icon blue">🔬</div>
+          <div class="rcard-body">
+            <div class="rcard-title">Laboratorios Autorizados — Certificación SA</div>
+            <div class="rcard-desc">Listado actualizado de empresas autorizadas para monitoreo, muestreo y análisis en el programa de certificación Systems Approach para USA.</div>
+            <div class="rcard-tags">
+              <span class="rtag rtag-blue">Directorio laboratorios</span>
+              <span class="rtag rtag-gray">Vigente</span>
+            </div>
+          </div>
+          <span class="rcard-arrow">↗</span>
+        </a>
+      </div>
+
+      <!-- MONITOREO PAM -->
+      <div class="cdk-panel-section" id="cdk-monitoreo">
+        <div class="cdk-panel-header">
+          <h2>Plataforma PAM — Monitoreo de Huertos</h2>
+          <p>En ejecución desde 2012. Información fenológica por ecozona para tomar decisiones de manejo basadas en datos reales de la Región del Maule.</p>
+        </div>
+        <div class="alert-banner info">
+          <span class="alert-icon">🌡️</span>
+          <div>La ecozona del campo (Maule central) tiene sus propios datos de plena flor, horas de frío y temperaturas críticas. <strong>Acceso requiere clave de socio CDK.</strong></div>
+        </div>
+        <a class="rcard" href="https://pam.comitedelkiwi.cl" target="_blank">
+          <div class="rcard-icon green">🌡️</div>
+          <div class="rcard-body">
+            <div class="rcard-title">Plataforma PAM — Acceso en línea</div>
+            <div class="rcard-desc">Datos por ecozona: plena flor, horas de frío acumuladas, temperaturas extremas, estado fenológico actual y proyecciones de cosecha. Actualización semanal en temporada.</div>
+            <div class="rcard-tags">
+              <span class="rtag rtag-green">Ecozona Maule</span>
+              <span class="rtag rtag-gray">Requiere clave socio</span>
+              <span class="rtag rtag-green">Actualización semanal</span>
+            </div>
+          </div>
+          <span class="rcard-arrow">↗</span>
+        </a>
+        <div class="crossref-box">
+          <h4>Cruce con fenología registrada del campo</h4>
+          <div class="crossref-row">
+            <div class="crossref-dot" style="background:var(--green)"></div>
+            <span>Plena flor Hayward registrada para <strong>DI C7–C10:</strong> sin dato 2022. Cruzar con PAM para completar catastro fenológico</span>
+          </div>
+          <div class="crossref-row">
+            <div class="crossref-dot" style="background:var(--kiwi)"></div>
+            <span>Plena flor cerezo Lapins: <strong>21 sep</strong> · Kordia/Regina: <strong>5 oct</strong> — alinear con modelo de acumulación de frío PAM</span>
+          </div>
+          <div class="crossref-row">
+            <div class="crossref-dot" style="background:var(--amber)"></div>
+            <span>C3 y C4 plantados en <strong>1984</strong> — verificar horas frío acumuladas vs requisito de Hayward (~700h) en datos PAM</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- POR CUARTEL: C3 y C4 -->
+      <div class="cdk-panel-section" id="cdk-c3c4">
+        <div class="cdk-panel-header">
+          <h2>Recursos específicos · C3 y C4 — Kiwi Hayward</h2>
+          <p>Cuarteles plantados en 1984, marco 5.5×4.5, portainjerto Bruno. Sistema Parrón con microaspersión.</p>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;font-size:12px;">
+          <div style="background:var(--card2);border-radius:8px;padding:12px;">
+            <div style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">C3 estado</div>
+            <div><strong>362</strong> hembras · <strong>44</strong> machos</div>
+            <div style="color:var(--cherry);margin-top:2px;">21 muertas (5.2%)</div>
+          </div>
+          <div style="background:var(--card2);border-radius:8px;padding:12px;">
+            <div style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">C4 estado</div>
+            <div><strong>805</strong> hembras · <strong>87</strong> machos</div>
+            <div style="color:var(--cherry);margin-top:2px;">54 muertas (6.1%)</div>
+          </div>
+        </div>
+        <a class="rcard" href="https://www.comitedelkiwi.cl/wp-content/uploads/2024/01/manual_prod_cap7-13.pdf" target="_blank">
+          <div class="rcard-icon green">🌸</div>
+          <div class="rcard-body">
+            <div class="rcard-title">Polinizantes Cap. 7–13 — crítico para C3 y C4</div>
+            <div class="rcard-desc">C3 tiene 44 machos en 15 hileras (mar 5.5×4.5). C4 tiene 87 machos en 24 hileras. Verificar distribución óptima y ratio con este manual.</div>
+            <div class="rcard-tags"><span class="rtag rtag-green">Acción recomendada</span></div>
+          </div>
+          <span class="rcard-arrow">↗</span>
+        </a>
+        <a class="rcard danger" href="https://www.comitedelkiwi.cl/wp-content/uploads/2024/10/DOC.TECNICO-CONTROL-DE-PSA-DEL-KIWI-INICIO-DE-PRIMAVERA-2024.pdf" target="_blank">
+          <div class="rcard-icon red">🌱</div>
+          <div class="rcard-body">
+            <div class="rcard-title">Control PSA primavera 2024 — plantas de 40 años</div>
+            <div class="rcard-desc">Plantación de 1984 = 40+ años de edad. Mayor susceptibilidad a PSA en plantas maduras con menor vigor. Prioridad fitosanitaria alta.</div>
+            <div class="rcard-tags"><span class="rtag rtag-red">Alta prioridad</span><span class="rtag rtag-red">Plantas de 40+ años</span></div>
+          </div>
+          <span class="rcard-arrow">↗</span>
+        </a>
+        <a class="rcard" href="https://www.comitedelkiwi.cl/wp-content/uploads/2024/01/manual_prod_cap0_6.pdf" target="_blank">
+          <div class="rcard-icon green">📖</div>
+          <div class="rcard-body">
+            <div class="rcard-title">Manual Producción Cap. 4 — Poda en plantas maduras</div>
+            <div class="rcard-desc">Criterios de renovación de madera en parrones con más de 20 años. Manejo de plantas con decaimiento productivo y reposición de brazos principales.</div>
+            <div class="rcard-tags"><span class="rtag rtag-amber">Revisar para plantas 1984</span></div>
+          </div>
+          <span class="rcard-arrow">↗</span>
+        </a>
+        <a class="rcard" href="https://www.comitedelkiwi.cl/wp-content/uploads/2024/01/manual_poscosecha_v2.pdf" target="_blank">
+          <div class="rcard-icon green">📦</div>
+          <div class="rcard-body">
+            <div class="rcard-title">Poscosecha — calibres pequeños en plantas maduras</div>
+            <div class="rcard-desc">Las plantas adultas tienden a producir frutos más grandes pero con menor firmeza. Revisar índices de cosecha y protocolos de frío para C3 y C4.</div>
+            <div class="rcard-tags"><span class="rtag rtag-green">Calidad exportación</span></div>
+          </div>
+          <span class="rcard-arrow">↗</span>
+        </a>
+      </div>
+
+      <!-- POR CUARTEL: C8 y C10 -->
+      <div class="cdk-panel-section" id="cdk-c8c10">
+        <div class="cdk-panel-header">
+          <h2>Recursos específicos · C8 y C10 — Kiwi Hayward</h2>
+          <p>Cuarteles plantados en 1986, marco 4.5×3.5, portainjerto Bruno. C10 es el mayor cuartel kiwi del campo (6.87 ha).</p>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;font-size:12px;">
+          <div style="background:#faeaea;border-radius:8px;padding:12px;">
+            <div style="color:var(--cherry);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">C8 — Alerta mortandad</div>
+            <div><strong>1,045</strong> hembras · <strong>121</strong> machos</div>
+            <div style="color:var(--cherry);font-weight:600;margin-top:2px;">108 muertas (9.3%) ⚠</div>
+          </div>
+          <div style="background:#faeaea;border-radius:8px;padding:12px;">
+            <div style="color:var(--cherry);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">C10 — Mayor cuartel</div>
+            <div><strong>3,617</strong> hembras · <strong>448</strong> machos</div>
+            <div style="color:var(--cherry);font-weight:600;margin-top:2px;">252 muertas (6.2%) ⚠</div>
+          </div>
+        </div>
+        <div class="alert-banner danger">
+          <span class="alert-icon">🚨</span>
+          <div>C8 tiene la mayor tasa de mortandad del campo (9.3%). C10 tiene la mayor cantidad absoluta (252 plantas). Se recomienda cruzar con los protocolos PSA para determinar si hay relación.</div>
+        </div>
+        <a class="rcard danger" href="https://www.comitedelkiwi.cl/wp-content/uploads/2024/10/Instructivo-Alerta-Psa-Kiwis-Sept.2022.pdf" target="_blank">
+          <div class="rcard-icon red">⚠️</div>
+          <div class="rcard-body">
+            <div class="rcard-title">Alerta PSA — diagnóstico diferencial mortalidad C8</div>
+            <div class="rcard-desc">9.3% de mortandad en C8 supera el umbral de alerta. Revisar sintomatología PSA: exudado bacteriano, cancros en brazos, clorosis foliar.</div>
+            <div class="rcard-tags"><span class="rtag rtag-red">Urgente C8</span><span class="rtag rtag-red">Diagnóstico requerido</span></div>
+          </div>
+          <span class="rcard-arrow">↗</span>
+        </a>
+        <a class="rcard" href="https://www.comitedelkiwi.cl/wp-content/uploads/2024/01/manual_prod_cap7-13.pdf" target="_blank">
+          <div class="rcard-icon green">🌸</div>
+          <div class="rcard-body">
+            <div class="rcard-title">Polinizantes — reajustar densidad post-mortandad</div>
+            <div class="rcard-desc">Con 108–252 plantas muertas, la distribución espacial de machos ha cambiado. Verificar si hay sectores del parrón con cobertura insuficiente de polinizadores.</div>
+            <div class="rcard-tags"><span class="rtag rtag-green">C8 · C10</span><span class="rtag rtag-amber">Revisar distribución</span></div>
+          </div>
+          <span class="rcard-arrow">↗</span>
+        </a>
+        <a class="rcard blue" href="https://www.comitedelkiwi.cl/wp-content/uploads/2023/07/ProtocoloSystemsApproachSAG.pdf" target="_blank">
+          <div class="rcard-icon blue">🌐</div>
+          <div class="rcard-body">
+            <div class="rcard-title">Systems Approach — monitoreo Brevipalpus en C10</div>
+            <div class="rcard-desc">C10 (6.87 ha) es el cuartel de mayor superficie kiwi. Si se busca certificación SA, este cuartel debe incluirse en el programa de monitoreo por su extensión.</div>
+            <div class="rcard-tags"><span class="rtag rtag-blue">C10 prioritario SA</span></div>
+          </div>
+          <span class="rcard-arrow">↗</span>
+        </a>
+        <a class="rcard" href="https://www.comitedelkiwi.cl/wp-content/uploads/2024/01/manual_poscosecha_v2.pdf" target="_blank">
+          <div class="rcard-icon green">📦</div>
+          <div class="rcard-body">
+            <div class="rcard-title">Poscosecha — C10 aporta ~58% del volumen kiwi</div>
+            <div class="rcard-desc">Con 6.87 ha de 11.63 ha totales en kiwi, C10 domina la producción. Las decisiones de cosecha (índice de madurez, timing) de este cuartel son las más críticas.</div>
+            <div class="rcard-tags"><span class="rtag rtag-green">Mayor impacto económico</span></div>
+          </div>
+          <span class="rcard-arrow">↗</span>
+        </a>
+        <a class="rcard" href="https://www.comitedelkiwi.cl/wp-content/uploads/2024/01/manual_prod_cap14-22.pdf" target="_blank">
+          <div class="rcard-icon green">🧪</div>
+          <div class="rcard-body">
+            <div class="rcard-title">Fertilización — ajuste post-reposición de plantas</div>
+            <div class="rcard-desc">La reposición de 250+ plantas en C10 requiere un programa de fertilización diferenciado para plantas jóvenes versus adultas en el mismo cuartel.</div>
+            <div class="rcard-tags"><span class="rtag rtag-amber">Reposición en curso</span></div>
+          </div>
+          <span class="rcard-arrow">↗</span>
+        </a>
+      </div>
+
+      <!-- CALENDARIO -->
+      <div class="cdk-panel-section" id="cdk-calendario">
+        <div class="cdk-panel-header">
+          <h2>Calendario de acciones CDK</h2>
+          <p>Recursos CDK organizados por mes de aplicación para el campo Doña Cecilia.</p>
+        </div>
+        <div class="timeline">
+          <div class="tl-item">
+            <div class="tl-date">Julio – Agosto</div>
+            <div class="tl-text">Poda + Control PSA salida de invierno</div>
+            <div class="tl-sub">Manual Producción Cap. 4 · <span class="crossref-link" onclick="cdkNav('fitosanidad', null)">Protocolo PSA invierno</span></div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-date">Agosto – Septiembre</div>
+            <div class="tl-text">Brotación + primera aplicación fitosanitaria</div>
+            <div class="tl-sub">Plena flor Lapins: 21 sep · <span class="crossref-link" onclick="cdkNav('fitosanidad', null)">Alerta PSA primavera</span> · Fertirrigación inicio</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-date">Octubre</div>
+            <div class="tl-text">Plena flor kiwi Hayward + cerezos Kordia/Regina</div>
+            <div class="tl-sub"><span class="crossref-link" onclick="cdkNav('produccion', null)">Manual Polinizantes Cap. 7–13</span> · Sumagic 5SC (1.5 L/ha) · PAM fenología</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-date">Noviembre – Enero</div>
+            <div class="tl-text">Cuaja y crecimiento de fruto</div>
+            <div class="tl-sub">Fertirrigación máxima · <span class="crossref-link" onclick="cdkNav('produccion', null)">Fertilización Cap. 15–18</span> · Monitoreo SA si aplica</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-date">Diciembre</div>
+            <div class="tl-text">Cosecha cerezos (Lapins 9–13 dic · Regina/Kordia 13–21 dic)</div>
+            <div class="tl-sub"><span class="crossref-link" onclick="cdkNav('poscosecha', null)">Manual Poscosecha Cap. 1–3</span> · Índices de cosecha cereza</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-date">Febrero – Marzo</div>
+            <div class="tl-text">Maduración kiwi + muestreo calidad</div>
+            <div class="tl-sub"><span class="crossref-link" onclick="cdkNav('poscosecha', null)">Manual Poscosecha — °Brix y firmeza</span> · Fichas Técnicas 2025</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-date">Abril – Mayo</div>
+            <div class="tl-text">Cosecha kiwi Hayward</div>
+            <div class="tl-sub"><span class="crossref-link" onclick="cdkNav('poscosecha', null)">Poscosecha: frío, calibres, atmósfera controlada</span> · <span class="crossref-link" onclick="cdkNav('exportacion', null)">SA si exporta USA/Brasil</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ALERTAS -->
+      <div class="cdk-panel-section" id="cdk-alertas">
+        <div class="cdk-panel-header">
+          <h2>Alertas activas del campo</h2>
+          <p>Situaciones que requieren acción prioritaria, cruzando datos del catastro con los protocolos CDK.</p>
+        </div>
+        <div class="alert-banner danger">
+          <span class="alert-icon">🚨</span>
+          <div>
+            <strong>C8: 9.3% mortandad (108 plantas)</strong><br>
+            Supera el umbral de alerta. Diagnóstico diferencial PSA recomendado.
+            <div style="margin-top:6px;"><span class="crossref-link" onclick="cdkNav('c8c10', null)">Ver recursos para C8 y C10 →</span></div>
+          </div>
+        </div>
+        <div class="alert-banner danger">
+          <span class="alert-icon">🚨</span>
+          <div>
+            <strong>C10: 252 plantas muertas (6.2% — mayor cantidad absoluta)</strong><br>
+            Con 6.87 ha, C10 aporta ~58% del kiwi del campo. La pérdida impacta directamente el volumen exportable.
+            <div style="margin-top:6px;"><span class="crossref-link" onclick="cdkNav('c8c10', null)">Ver recursos para C8 y C10 →</span></div>
+          </div>
+        </div>
+        <div class="alert-banner warn">
+          <span class="alert-icon">⚠️</span>
+          <div>
+            <strong>C3 y C4: plantas de 40+ años (plantadas 1984)</strong><br>
+            Mayor susceptibilidad a PSA y decaimiento productivo. Revisar programa de renovación de madera.
+            <div style="margin-top:6px;"><span class="crossref-link" onclick="cdkNav('c3c4', null)">Ver recursos para C3 y C4 →</span></div>
+          </div>
+        </div>
+        <div class="alert-banner warn">
+          <span class="alert-icon">⚠️</span>
+          <div>
+            <strong>C7 Avellano: 122 muertas (8.1%)</strong><br>
+            Plantado en 2021 — alta mortandad en planta joven. Verificar condiciones de suelo, riego y establecimiento.
+          </div>
+        </div>
+        <div class="alert-banner info">
+          <span class="alert-icon">ℹ️</span>
+          <div>
+            <strong>Precio USD/kg en máximo histórico: $1.76 (2023)</strong><br>
+            Revisar certificación SA para mantener acceso a mercados premium (USA, Brasil, Corea). La certificación requiere registro previo en SAG.
+            <div style="margin-top:6px;"><span class="crossref-link" onclick="cdkNav('exportacion', null)">Ver recursos exportación →</span></div>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- ===== SIMULADOR 1: POLINIZANTES ===== -->
+      <div class="cdk-panel-section" id="cdk-sim-polinizantes">
+        <div class="cdk-panel-header">
+          <h2>Simulador de Polinizantes</h2>
+          <p>Basado en Manual CDK Cap. 7–13. Calcula si la distribución actual de machos es suficiente según el marco de plantación y la mortandad registrada.</p>
+        </div>
+        <div style="background:var(--card2);border-radius:10px;padding:16px;margin-bottom:16px;">
+          <div style="font-size:12px;font-weight:600;margin-bottom:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">Seleccionar cuartel</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+            <button class="sim-btn active" onclick="simPolinizante('dc3',this)">DC-C3</button>
+            <button class="sim-btn" onclick="simPolinizante('dc4',this)">DC-C4</button>
+            <button class="sim-btn" onclick="simPolinizante('dc8',this)">DC-C8</button>
+            <button class="sim-btn" onclick="simPolinizante('dc10',this)">DC-C10</button>
+            <button class="sim-btn" onclick="simPolinizante('di7',this)">DI-C7</button>
+            <button class="sim-btn" onclick="simPolinizante('di8',this)">DI-C8</button>
+            <button class="sim-btn" onclick="simPolinizante('di9',this)">DI-C9</button>
+            <button class="sim-btn" onclick="simPolinizante('di10',this)">DI-C10</button>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px;">
+            <div>
+              <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">Hembras vivas</label>
+              <input type="number" id="pol-hembras" value="362" min="1" oninput="calcPolinizante()" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--card);">
+            </div>
+            <div>
+              <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">Machos actuales</label>
+              <input type="number" id="pol-machos" value="44" min="0" oninput="calcPolinizante()" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--card);">
+            </div>
+            <div>
+              <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">Ratio objetivo CDK</label>
+              <select id="pol-ratio" onchange="calcPolinizante()" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--card);">
+                <option value="8">1:8 (mínimo)</option>
+                <option value="7" selected>1:7 (recomendado)</option>
+                <option value="6">1:6 (intensivo)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div id="pol-result" style="border-radius:10px;padding:16px;border:2px solid var(--green);background:var(--green-light);"></div>
+        <div style="margin-top:14px;padding:12px;background:var(--card2);border-radius:8px;font-size:11.5px;color:var(--muted);line-height:1.6;">
+          <strong style="color:var(--text);">Referencia CDK Cap. 7:</strong> La relación óptima para Hayward es 1 macho por cada 7–8 hembras. Los machos Bruno deben distribuirse uniformemente cada 3–4 hileras en sistema parrón. La mortandad de hembras sin reposición de machos deteriora la cobertura de polinización.
+        </div>
+      </div>
+
+      <!-- ===== SIMULADOR 2: RENDIMIENTO ===== -->
+      <div class="cdk-panel-section" id="cdk-sim-rendimiento">
+        <div class="cdk-panel-header">
+          <h2>Simulador de Rendimiento</h2>
+          <p>Proyecta producción (kg/ha y kg totales) según mortandad, polinización, precio de mercado y edad de las plantas. Basado en histórico del campo 2017–2023.</p>
+        </div>
+        <div style="background:var(--card2);border-radius:10px;padding:16px;margin-bottom:16px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+            <div>
+              <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">Cuartel kiwi</label>
+              <select id="rend-cuartel" onchange="calcRendimiento()" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--card);">
+                <option value="dc3">DC-C3 · 0.93 ha · 362 hembras</option>
+                <option value="dc4">DC-C4 · 1.84 ha · 805 hembras</option>
+                <option value="dc8">DC-C8 · 1.99 ha · 1,045 hembras</option>
+                <option value="dc10" selected>DC-C10 · 6.87 ha · 3,617 hembras</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">Kg por planta base</label>
+              <input type="range" id="rend-kgplanta" min="10" max="60" value="35" oninput="calcRendimiento();document.getElementById('rend-kgplanta-val').textContent=this.value+' kg'" style="width:100%;margin-top:8px;">
+              <div style="font-size:12px;text-align:center;margin-top:2px;" id="rend-kgplanta-val">35 kg</div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">
+            <div>
+              <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">% mortandad adicional</label>
+              <input type="range" id="rend-mort" min="0" max="20" value="0" oninput="calcRendimiento();document.getElementById('rend-mort-val').textContent=this.value+'%'" style="width:100%;margin-top:8px;">
+              <div style="font-size:12px;text-align:center;margin-top:2px;" id="rend-mort-val">0%</div>
+            </div>
+            <div>
+              <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">Factor polinización</label>
+              <input type="range" id="rend-polin" min="70" max="100" value="95" oninput="calcRendimiento();document.getElementById('rend-polin-val').textContent=this.value+'%'" style="width:100%;margin-top:8px;">
+              <div style="font-size:12px;text-align:center;margin-top:2px;" id="rend-polin-val">95%</div>
+            </div>
+            <div>
+              <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">Precio USD/kg</label>
+              <input type="range" id="rend-precio" min="0.5" max="3.0" step="0.05" value="1.76" oninput="calcRendimiento();document.getElementById('rend-precio-val').textContent='$'+parseFloat(this.value).toFixed(2)" style="width:100%;margin-top:8px;">
+              <div style="font-size:12px;text-align:center;margin-top:2px;" id="rend-precio-val">$1.76</div>
+            </div>
+          </div>
+        </div>
+        <div id="rend-result" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;"></div>
+        <div id="rend-chart-wrap" style="position:relative;height:200px;margin-bottom:14px;">
+          <canvas id="rend-chart"></canvas>
+        </div>
+        <div id="rend-recomendacion" style="border-radius:8px;padding:12px;font-size:12px;line-height:1.6;"></div>
+      </div>
+
+      <!-- ===== SIMULADOR 3: RIESGO PSA ===== -->
+      <div class="cdk-panel-section" id="cdk-sim-psa">
+        <div class="cdk-panel-header">
+          <h2>Evaluador de Riesgo PSA por Cuartel</h2>
+          <p>Basado en los factores de riesgo del protocolo CDK/SAG. Evalúa cada cuartel kiwi según edad, mortandad, historial y condiciones del campo.</p>
+        </div>
+        <div id="psa-grid" style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;"></div>
+        <div style="background:var(--card2);border-radius:10px;padding:14px;">
+          <div style="font-size:12px;font-weight:600;margin-bottom:10px;">Simular condiciones adicionales</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+            <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;">
+              <input type="checkbox" id="psa-lluvias" onchange="evalPSA()" style="width:14px;height:14px;">
+              Lluvias primaverales excesivas
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;">
+              <input type="checkbox" id="psa-heladas" onchange="evalPSA()" style="width:14px;height:14px;">
+              Heladas tardías (&lt; -2°C en floración)
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;">
+              <input type="checkbox" id="psa-heridas" onchange="evalPSA()" style="width:14px;height:14px;">
+              Heridas de poda recientes sin cobre
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;">
+              <input type="checkbox" id="psa-vecino" onchange="evalPSA()" style="width:14px;height:14px;">
+              Campo vecino con PSA confirmado
+            </label>
+          </div>
+          <div id="psa-acciones" style="margin-top:10px;"></div>
+        </div>
+      </div>
+
+      <!-- ===== SIMULADOR 4: PLAN FITOSANITARIO ===== -->
+      <div class="cdk-panel-section" id="cdk-sim-gantt">
+        <div class="cdk-panel-header">
+          <h2>Plan Fitosanitario Interactivo</h2>
+          <p>Calendario de aplicaciones basado en CDK para los cuarteles de kiwi. Marca las aplicaciones realizadas y ajusta fechas según fenología real.</p>
+        </div>
+        <div style="margin-bottom:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <span style="font-size:12px;color:var(--muted);">Temporada:</span>
+          <button class="sim-btn active" onclick="setTemporada('2025-26',this)">2025–26</button>
+          <button class="sim-btn" onclick="setTemporada('2026-27',this)">2026–27</button>
+          <span style="margin-left:auto;font-size:11px;color:var(--muted);" id="gantt-prog"></span>
+        </div>
+        <div id="gantt-table" style="overflow-x:auto;"></div>
+        <div style="margin-top:14px;padding:12px;background:var(--card2);border-radius:8px;font-size:11.5px;color:var(--muted);display:flex;gap:16px;flex-wrap:wrap;">
+          <span><span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#5a9e4a;margin-right:4px;vertical-align:middle;"></span>Completada</span>
+          <span><span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#b87e1a;margin-right:4px;vertical-align:middle;"></span>Pendiente (en fecha)</span>
+          <span><span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#943f3f;margin-right:4px;vertical-align:middle;"></span>Vencida</span>
+          <span><span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:var(--border);margin-right:4px;vertical-align:middle;"></span>Próxima</span>
+        </div>
+      </div>
+
+    </div><!-- end cdk-panel -->
+  </div><!-- end cdk-layout -->
+
+</div>
+</div>
+
+<div class="footer">
+  Dashboard Campo Doña Cecilia · Datos: KMZ georeferenciado + Catastro plantaciones 2023 + CDK Centro de Documentación · Generado Marzo 2026
+</div>
+
+<script>
+// CDK Resources navigation
+function cdkNav(id, btn) {
+  document.querySelectorAll('.cdk-panel-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.cdk-nav-item').forEach(n => n.classList.remove('active'));
+  var panel = document.getElementById('cdk-' + id);
+  if (panel) panel.classList.add('active');
+  if (btn) btn.classList.add('active');
+  else {
+    document.querySelectorAll('.cdk-nav-item').forEach(function(n) {
+      if (n.getAttribute('onclick') && n.getAttribute('onclick').indexOf("'" + id + "'") >= 0) {
+        n.classList.add('active');
+      }
+    });
+  }
+  // Also switch to recursos tab if not already there
+  var tabRecursos = document.getElementById('tab-recursos');
+  if (tabRecursos && !tabRecursos.classList.contains('active')) {
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tabRecursos.classList.add('active');
+    document.querySelectorAll('.tab').forEach(function(t) {
+      if (t.getAttribute('onclick') && t.getAttribute('onclick').indexOf("'recursos'") >= 0) t.classList.add('active');
+    });
+  }
+  // Init simulators when navigating to any sim panel
+  if (id.indexOf('sim-') === 0) initSimulators();
+}
+
+// Tab navigation
+function showTab(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  event.target.classList.add('active');
+  if (id === 'mapa') {
+    setTimeout(function() {
+      if (typeof maybeInitMap !== 'undefined') maybeInitMap();
+      if (window._leafletMap) {
+        window._leafletMap.invalidateSize();
+        window._leafletMap.fitBounds([[-35.6409, -71.6540], [-35.6289, -71.6419]]);
+      }
+    }, 80);
+  }
+}
+
+
+// ============================================================
+// SIMULADORES CDK
+// ============================================================
+var simData = {
+  dc3:  { label:'DC-C3',  ha:0.93,  hembras:362,  machos:44,  muertas:21,  anio:1984, total:406  },
+  dc4:  { label:'DC-C4',  ha:1.84,  hembras:805,  machos:87,  muertas:54,  anio:1984, total:892  },
+  dc8:  { label:'DC-C8',  ha:1.99,  hembras:1045, machos:121, muertas:108, anio:1986, total:1166 },
+  dc10: { label:'DC-C10', ha:6.87,  hembras:3617, machos:448, muertas:252, anio:1986, total:4065 },
+  di7:  { label:'DI-C7',  ha:1.30,  hembras:850,  machos:101, muertas:25,  anio:1989, total:951  },
+  di8:  { label:'DI-C8',  ha:1.52,  hembras:953,  machos:126, muertas:60,  anio:1989, total:1079 },
+  di9:  { label:'DI-C9',  ha:1.51,  hembras:998,  machos:87,  muertas:67,  anio:1989, total:1085 },
+  di10: { label:'DI-C10', ha:1.45,  hembras:961,  machos:100, muertas:39,  anio:1989, total:1061 }
+};
+
+function simPolinizante(key, btn) {
+  document.querySelectorAll('#cdk-sim-polinizantes .sim-btn').forEach(function(b){b.classList.remove('active');});
+  if (btn) btn.classList.add('active');
+  var d = simData[key];
+  document.getElementById('pol-hembras').value = d.hembras;
+  document.getElementById('pol-machos').value = d.machos;
+  calcPolinizante();
+}
+
+function calcPolinizante() {
+  var h = parseInt(document.getElementById('pol-hembras').value) || 0;
+  var m = parseInt(document.getElementById('pol-machos').value) || 0;
+  var ratio = parseInt(document.getElementById('pol-ratio').value);
+  if (!h) return;
+  var ratioActual = m > 0 ? (h/m).toFixed(1) : '∞';
+  var machoNecesario = Math.ceil(h/ratio);
+  var deficit = machoNecesario - m;
+  var cobertura = Math.min(100, Math.round((m/machoNecesario)*100));
+  var ok = deficit <= 0;
+  var color = ok ? '#3a6e2f' : deficit <= 3 ? '#b87e1a' : '#943f3f';
+  var bg = ok ? '#e8f2e4' : deficit <= 3 ? '#fdf3de' : '#faeaea';
+  var bord = ok ? '#3a6e2f' : deficit <= 3 ? '#f59e0b' : '#943f3f';
+  var icon = ok ? '✅' : deficit <= 3 ? '⚠️' : '🚨';
+  var msg = ok ? 'Ratio óptimo. La distribución actual cumple el estándar CDK.'
+    : deficit <= 3 ? 'Levemente bajo el mínimo. Considerar agregar '+deficit+' machos adicionales.'
+    : 'Déficit crítico de polinizantes. Faltan '+deficit+' machos para cumplir el estándar CDK.';
+  var el = document.getElementById('pol-result');
+  if (!el) return;
+  el.style.background = bg; el.style.borderColor = bord;
+  el.innerHTML = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px;">'
+    +'<div style="text-align:center;"><div style="font-size:22px;font-family:Bitter,serif;font-weight:700;color:'+color+';">'+ratioActual+'</div><div style="font-size:10px;color:#6b6a62;margin-top:2px;">Ratio actual</div></div>'
+    +'<div style="text-align:center;"><div style="font-size:22px;font-family:Bitter,serif;font-weight:700;">'+machoNecesario+'</div><div style="font-size:10px;color:#6b6a62;margin-top:2px;">Machos necesarios (1:'+ratio+')</div></div>'
+    +'<div style="text-align:center;"><div style="font-size:22px;font-family:Bitter,serif;font-weight:700;color:'+color+';">'+(ok?'0':'+'+deficit)+'</div><div style="font-size:10px;color:#6b6a62;margin-top:2px;">'+(ok?'Excedente':'Déficit machos')+'</div></div>'
+    +'<div style="text-align:center;"><div style="font-size:22px;font-family:Bitter,serif;font-weight:700;color:'+color+';">'+cobertura+'%</div><div style="font-size:10px;color:#6b6a62;margin-top:2px;">Cobertura</div></div>'
+    +'</div><div style="height:8px;background:rgba(0,0,0,0.08);border-radius:4px;overflow:hidden;margin-bottom:10px;"><div style="height:100%;width:'+cobertura+'%;background:'+color+';border-radius:4px;transition:width 0.4s;"></div></div>'
+    +'<div style="font-size:12.5px;">'+icon+' '+msg+'</div>';
+}
+
+var rendChart = null;
+var rendCuartelData = {
+  dc3:  {ha:0.93,  hembras:362,  base:30},
+  dc4:  {ha:1.84,  hembras:805,  base:32},
+  dc8:  {ha:1.99,  hembras:1045, base:33},
+  dc10: {ha:6.87,  hembras:3617, base:35}
+};
+var histKgHa = [7.1,5.4,5.5,5.6,6.4,6.9,8.1];
+
+function calcRendimiento() {
+  var key = document.getElementById('rend-cuartel').value;
+  var kgp = parseFloat(document.getElementById('rend-kgplanta').value);
+  var mort = parseFloat(document.getElementById('rend-mort').value)/100;
+  var polin = parseFloat(document.getElementById('rend-polin').value)/100;
+  var precio = parseFloat(document.getElementById('rend-precio').value);
+  var d = rendCuartelData[key];
+  if (!d) return;
+  var hembrasFinal = Math.round(d.hembras*(1-mort));
+  var kgTotal = Math.round(hembrasFinal*kgp*polin);
+  var kgHa = (kgTotal/d.ha/1000).toFixed(1);
+  var usd = Math.round(kgTotal*precio);
+  var usdHa = Math.round(usd/d.ha);
+  var rc = parseFloat(kgHa)>=8?'#3a6e2f':parseFloat(kgHa)>=5?'#b87e1a':'#943f3f';
+  var rr = document.getElementById('rend-result');
+  if (!rr) return;
+  rr.innerHTML = '<div class="rend-metric"><div class="rend-metric-val" style="color:'+rc+';">'+kgHa+'</div><div class="rend-metric-lbl">t/ha proyectada</div></div>'
+    +'<div class="rend-metric"><div class="rend-metric-val">'+(kgTotal/1000).toFixed(1)+'t</div><div class="rend-metric-lbl">Kg totales</div></div>'
+    +'<div class="rend-metric"><div class="rend-metric-val">$'+(usd/1000).toFixed(1)+'k</div><div class="rend-metric-lbl">USD estimado</div></div>'
+    +'<div class="rend-metric"><div class="rend-metric-val">$'+usdHa.toLocaleString()+'</div><div class="rend-metric-lbl">USD / ha</div></div>';
+  var rec = parseFloat(kgHa)<5?'<span style="color:#943f3f">⚠ Rendimiento bajo umbral. Revisar factores de mortandad y nutrición (CDK Cap. 14–22).</span>'
+    :parseFloat(kgHa)<7?'<span style="color:#b87e1a">Rendimiento aceptable, por debajo del promedio 2023 del campo (8.1 t/ha). Optimizar polinización y fertirrigación.</span>'
+    :'<span style="color:#3a6e2f">Rendimiento sobre el promedio histórico. Mantener protocolo Sumagic 5SC y polinización actual.</span>';
+  var recEl = document.getElementById('rend-recomendacion');
+  if (recEl) recEl.innerHTML = '<div style="padding:10px;background:var(--card2);border-radius:8px;font-size:12px;">'+rec+'</div>';
+  var canvas = document.getElementById('rend-chart');
+  if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+  if (rendChart) { rendChart.destroy(); rendChart = null; }
+  rendChart = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels:['2017','2018','2019','2020','2021','2022','2023','Proyección'],
+      datasets:[{
+        label:'t/ha',
+        data:[...histKgHa, parseFloat(kgHa)],
+        backgroundColor:[...histKgHa.map(function(){return '#5a9e4a88';}), rc],
+        borderRadius:4
+      }]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{y:{beginAtZero:true,ticks:{font:{size:10}}},x:{ticks:{font:{size:10}}}}}
+  });
+}
+
+function evalPSA() {
+  var lluvia = document.getElementById('psa-lluvias') && document.getElementById('psa-lluvias').checked;
+  var helada = document.getElementById('psa-heladas') && document.getElementById('psa-heladas').checked;
+  var heridas = document.getElementById('psa-heridas') && document.getElementById('psa-heridas').checked;
+  var vecino = document.getElementById('psa-vecino') && document.getElementById('psa-vecino').checked;
+  var bonus = (lluvia?20:0)+(helada?15:0)+(heridas?25:0)+(vecino?30:0);
+  var cuarteles = [
+    {key:'dc3', label:'DC-C3', ha:0.93, muertas:21, total:406, anio:1984},
+    {key:'dc4', label:'DC-C4', ha:1.84, muertas:54, total:892, anio:1984},
+    {key:'dc8', label:'DC-C8', ha:1.99, muertas:108, total:1166, anio:1986},
+    {key:'dc10',label:'DC-C10',ha:6.87, muertas:252, total:4065,anio:1986},
+    {key:'di7', label:'DI-C7', ha:1.30, muertas:25, total:951, anio:1989},
+    {key:'di8', label:'DI-C8', ha:1.52, muertas:60, total:1079,anio:1989},
+    {key:'di9', label:'DI-C9', ha:1.51, muertas:67, total:1085,anio:1989},
+    {key:'di10',label:'DI-C10',ha:1.45, muertas:39, total:1061,anio:1989}
+  ];
+  var html = ''; var maxRisk = 0; var maxLabel = '';
+  cuarteles.forEach(function(c) {
+    var mort = (c.muertas/c.total)*100;
+    var edad = 2025-c.anio;
+    var rm = mort>8?35:mort>5?20:mort>2?10:5;
+    var re = edad>35?30:edad>25?20:10;
+    var rh = c.ha>5?15:c.ha>2?10:5;
+    var tot = Math.min(100, rm+re+rh+bonus);
+    if (tot>maxRisk){maxRisk=tot;maxLabel=c.label;}
+    var col = tot>=70?'#943f3f':tot>=45?'#b87e1a':'#3a6e2f';
+    var niv = tot>=70?'ALTO':tot>=45?'MEDIO':'BAJO';
+    var bg2 = tot>=70?'#faeaea':tot>=45?'#fdf3de':'#e8f2e4';
+    html += '<div style="background:'+bg2+';border-radius:8px;padding:11px 14px;border-left:4px solid '+col+';">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">'
+      +'<span style="font-weight:600;font-size:13px;">'+c.label+'</span>'
+      +'<span style="font-size:11px;font-weight:700;color:'+col+';">'+niv+' · '+tot+'%</span></div>'
+      +'<div style="display:flex;gap:10px;font-size:11px;color:#6b6a62;margin-bottom:6px;flex-wrap:wrap;">'
+      +'<span>Edad: '+edad+' años</span><span>Mortandad: '+mort.toFixed(1)+'%</span><span>'+c.ha+' ha</span></div>'
+      +'<div style="height:7px;background:rgba(0,0,0,0.08);border-radius:4px;overflow:hidden;">'
+      +'<div style="height:100%;width:'+tot+'%;background:'+col+';border-radius:4px;transition:width 0.5s;"></div></div></div>';
+  });
+  var pg = document.getElementById('psa-grid');
+  if (pg) pg.innerHTML = html;
+  var acciones = maxRisk>=70
+    ? '<div style="background:#faeaea;border-radius:8px;padding:12px;font-size:12px;border:1px solid #943f3f;">🚨 <strong>Acción urgente en '+maxLabel+':</strong> Aplicar cobre + fosetyl-Al antes de brotación según <a href="https://www.comitedelkiwi.cl/wp-content/uploads/2024/10/DOC.TECNICO-CONTROL-DE-PSA-DEL-KIWI-INICIO-DE-PRIMAVERA-2024.pdf" target="_blank" style="color:#943f3f;">Protocolo PSA primavera 2024</a>. Monitoreo visual semanal obligatorio.</div>'
+    : maxRisk>=45
+    ? '<div style="background:#fdf3de;border-radius:8px;padding:12px;font-size:12px;border:1px solid #f59e0b;">⚠️ <strong>Riesgo moderado:</strong> Aplicar programa preventivo y monitorear cada 15 días.</div>'
+    : '<div style="background:#e8f2e4;border-radius:8px;padding:12px;font-size:12px;border:1px solid #3a6e2f;">✅ <strong>Riesgo bajo.</strong> Mantener programa preventivo estándar. Revisar si cambian condiciones.</div>';
+  var pa = document.getElementById('psa-acciones');
+  if (pa) pa.innerHTML = acciones;
+}
+
+var ganttState = {};
+var ganttAplicaciones = [
+  {id:'p1', mes:'Jul–Ago', nombre:'Cobre + poda sanitaria', tipo:'PSA', meses:[6,7]},
+  {id:'p2', mes:'Ago', nombre:'Fosetyl-Al preventivo', tipo:'PSA', meses:[7]},
+  {id:'p3', mes:'Sep', nombre:'Cobre en brotación', tipo:'PSA', meses:[8]},
+  {id:'p4', mes:'Sep', nombre:'Sumagic 5SC (1.5 L/ha)', tipo:'Fertirrigación', meses:[8]},
+  {id:'p5', mes:'Oct', nombre:'Fosetyl-Al + fertilización K', tipo:'PSA + Nutrición', meses:[9]},
+  {id:'p6', mes:'Oct–Nov', nombre:'Monitoreo Brevipalpus (SA)', tipo:'SA/Cuarentena', meses:[9,10]},
+  {id:'p7', mes:'Nov–Dic', nombre:'Fertirrigación N-P-K plena carga', tipo:'Fertirrigación', meses:[10,11]},
+  {id:'p8', mes:'Ene–Feb', nombre:'Fertirrigación K poscuaja', tipo:'Fertirrigación', meses:[0,1]},
+  {id:'p9', mes:'Mar–Abr', nombre:'Muestreo calidad cosecha (°Brix)', tipo:'Poscosecha', meses:[2,3]},
+  {id:'p10',mes:'Abr–May', nombre:'Cosecha + aplicación poscosecha', tipo:'Poscosecha', meses:[3,4]}
+];
+
+function renderGantt() {
+  var hoy = new Date(); var mesHoy = hoy.getMonth();
+  var done = Object.values(ganttState).filter(function(v){return v===true;}).length;
+  var pct = Math.round((done/ganttAplicaciones.length)*100);
+  var pg = document.getElementById('gantt-prog');
+  if (pg) pg.textContent = done+'/'+ganttAplicaciones.length+' completadas ('+pct+'%)';
+  var tc = {'PSA':'#943f3f','Fertirrigación':'#5a9e4a','SA/Cuarentena':'#2a5f8f','PSA + Nutrición':'#b87e1a','Poscosecha':'#6a3a8a'};
+  var html = '<table style="width:100%;border-collapse:collapse;font-size:12px;">'
+    +'<thead><tr style="background:var(--card2);">'
+    +'<th style="padding:8px 10px;text-align:left;font-weight:500;color:#6b6a62;border-bottom:1px solid rgba(0,0,0,0.1);">Aplicación</th>'
+    +'<th style="padding:8px 10px;text-align:left;font-weight:500;color:#6b6a62;border-bottom:1px solid rgba(0,0,0,0.1);">Tipo</th>'
+    +'<th style="padding:8px 10px;text-align:left;font-weight:500;color:#6b6a62;border-bottom:1px solid rgba(0,0,0,0.1);">Mes</th>'
+    +'<th style="padding:8px 10px;text-align:center;font-weight:500;color:#6b6a62;border-bottom:1px solid rgba(0,0,0,0.1);">Estado</th>'
+    +'</tr></thead><tbody>';
+  ganttAplicaciones.forEach(function(ap) {
+    var isDone = ganttState[ap.id]===true;
+    var esMes = ap.meses.indexOf(mesHoy)>=0;
+    var pasado = ap.meses.every(function(m){return m<mesHoy;});
+    var vencida = !isDone && pasado;
+    var col2 = tc[ap.tipo]||'#888';
+    var rb = isDone?'rgba(90,158,74,0.06)':vencida?'rgba(148,63,63,0.06)':esMes?'rgba(184,126,26,0.06)':'';
+    var sc = isDone?'#5a9e4a':vencida?'#943f3f':esMes?'#b87e1a':'#aaa';
+    var sl = isDone?'✓ Hecha':vencida?'! Vencida':esMes?'→ Ahora':'○ Próxima';
+    html += '<tr style="background:'+rb+';border-bottom:1px solid rgba(0,0,0,0.04);">'
+      +'<td style="padding:9px 10px;font-weight:500;">'+ap.nombre+'</td>'
+      +'<td style="padding:9px 10px;"><span style="background:'+col2+'22;color:'+col2+';padding:2px 7px;border-radius:10px;font-size:10px;font-weight:500;">'+ap.tipo+'</span></td>'
+      +'<td style="padding:9px 10px;color:#6b6a62;">'+ap.mes+'</td>'
+      +'<td style="padding:9px 10px;text-align:center;">'
+      +'<button onclick="toggleGantt(\'' + ap.id + '\')" style="background:'+(isDone?'#5a9e4a':vencida?'#943f3f':esMes?'#b87e1a':'var(--card2)')+';color:'+(isDone||vencida||esMes?'#fff':'#6b6a62')+';border:1px solid '+sc+';border-radius:6px;padding:3px 10px;font-size:10px;font-weight:600;cursor:pointer;min-width:72px;">'+sl+'</button>'
+      +'</td></tr>';
+  });
+  html += '</tbody></table>';
+  var gt = document.getElementById('gantt-table');
+  if (gt) gt.innerHTML = html;
+}
+
+function setTemporada(t, btn) {
+  document.querySelectorAll('#cdk-sim-gantt .sim-btn').forEach(function(b){b.classList.remove('active');});
+  if (btn) btn.classList.add('active');
+  renderGantt();
+}
+
+function toggleGantt(id) {
+  ganttState[id] = !ganttState[id];
+  renderGantt();
+}
+
+function initSimulators() {
+  setTimeout(function() {
+    if (document.getElementById('pol-result')) calcPolinizante();
+    if (document.getElementById('rend-result')) calcRendimiento();
+    if (document.getElementById('psa-grid')) evalPSA();
+    if (document.getElementById('gantt-table')) renderGantt();
+  }, 50);
+}
+
+// ============================================================
+
+// Cuartel data
+const cuarteles = [
+  {n:1, esp:'AVELLANO', var:'GIFFONI', porto:'-', ha:2.16, marco:'5x3', anio:2017, form:'MULTIEJE', riego:'GOTEO', vivas:1262, polin:127, muertas:0, total:1262},
+  {n:2, esp:'AVELLANO', var:'GIFFONI', porto:'-', ha:0.97, marco:'5x3', anio:2021, form:'MULTIEJE', riego:'GOTEO', vivas:519, polin:75, muertas:49, total:568},
+  {n:3, esp:'KIWI', var:'HAYWARD', porto:'BRUNO', ha:0.93, marco:'5.5x4.5', anio:1984, form:'PARRON', riego:'MICROASP.', vivas:362, polin:44, muertas:21, total:406},
+  {n:4, esp:'KIWI', var:'HAYWARD', porto:'BRUNO', ha:1.84, marco:'5.5x4.5', anio:1984, form:'PARRON', riego:'MICROASP.', vivas:805, polin:87, muertas:54, total:892},
+  {n:5, esp:'AVELLANO', var:'GIFFONI', porto:'-', ha:6.30, marco:'5x3', anio:2017, form:'MULTIEJE', riego:'GOTEO', vivas:3463, polin:263, muertas:3, total:3466},
+  {n:6, esp:'AVELLANO', var:'GIFFONI', porto:'-', ha:2.57, marco:'5x3', anio:2017, form:'MULTIEJE', riego:'GOTEO', vivas:1831, polin:121, muertas:5, total:1836},
+  {n:7, esp:'AVELLANO', var:'GIFFONI', porto:'-', ha:2.44, marco:'5x3', anio:2021, form:'MULTIEJE', riego:'GOTEO', vivas:1385, polin:149, muertas:122, total:1507},
+  {n:8, esp:'KIWI', var:'HAYWARD', porto:'BRUNO', ha:1.99, marco:'4.5x3.5', anio:1986, form:'PARRON', riego:'MICROASP.', vivas:1045, polin:121, muertas:108, total:1166},
+  {n:9, esp:'AVELLANO', var:'GIFFONI', porto:'-', ha:7.19, marco:'5x3', anio:2017, form:'MULTIEJE', riego:'GOTEO', vivas:4225, polin:351, muertas:5, total:4230},
+  {n:10, esp:'KIWI', var:'HAYWARD', porto:'BRUNO', ha:6.87, marco:'4.5x3.5', anio:1986, form:'PARRON', riego:'MICROASP.', vivas:3617, polin:448, muertas:252, total:4065},
+  {n:11, esp:'AVELLANO', var:'GIFFONI', porto:'-', ha:8.58, marco:'5x3', anio:2017, form:'MULTIEJE', riego:'GOTEO', vivas:3880, polin:302, muertas:21, total:3901},
+  {n:12, esp:'AVELLANO', var:'GIFFONI', porto:'-', ha:11.50, marco:'5x3', anio:2017, form:'MULTIEJE', riego:'GOTEO', vivas:4187, polin:359, muertas:22, total:4209},
+  {n:13, esp:'AVELLANO', var:'GIFFONI', porto:'-', ha:null, marco:'5x3', anio:2017, form:'-', riego:'-', vivas:3853, polin:334, muertas:7, total:3860},
+];
+
+function renderCuartelTable(filter) {
+  const tbody = document.getElementById('cuartel-tbody');
+  const data = filter === 'all' ? cuarteles : cuarteles.filter(c => c.esp === filter);
+  tbody.innerHTML = data.map(c => {
+    const color = c.esp === 'KIWI' ? '#7a9e2a' : '#8a6a3a';
+    const bg = c.esp === 'KIWI' ? '#edf4d4' : '#f5ede0';
+    const mortPct = c.total > 0 ? (c.muertas/c.total*100).toFixed(1) : 0;
+    const mortColor = parseFloat(mortPct) > 5 ? '#943f3f' : (parseFloat(mortPct) > 2 ? '#b87e1a' : 'var(--muted)');
+    return `<tr>
+      <td><strong>C${c.n}</strong></td>
+      <td><span class="badge" style="background:${bg};color:${color};">${c.esp}</span></td>
+      <td>${c.var}</td>
+      <td style="font-size:11px;color:var(--muted);">${c.porto}</td>
+      <td class="num"><strong>${c.ha || '—'}</strong></td>
+      <td style="font-size:11px;">${c.marco}</td>
+      <td style="font-size:11px;">${c.anio}</td>
+      <td style="font-size:11px;">${c.form}</td>
+      <td style="font-size:11px;">${c.riego}</td>
+      <td class="num">${c.vivas.toLocaleString()}</td>
+      <td class="num" style="color:var(--green);">${c.polin.toLocaleString()}</td>
+      <td class="num" style="color:${mortColor};">${c.muertas} <span style="font-size:10px;">(${mortPct}%)</span></td>
+      <td class="num">${c.total.toLocaleString()}</td>
+      <td style="font-size:11px;">${c.form}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderCuartelCards(filter) {
+  const container = document.getElementById('cuartel-cards');
+  const data = filter === 'all' ? cuarteles : cuarteles.filter(c => c.esp === filter);
+  container.innerHTML = data.map(c => {
+    const color = c.esp === 'KIWI' ? '#5a9e30' : '#8a6a3a';
+    const bg = c.esp === 'KIWI' ? '#d4eecc' : '#f0e4d0';
+    const icon = c.esp === 'KIWI' ? '🥝' : '🌰';
+    const pct = c.total > 0 ? Math.round(c.vivas/c.total*100) : 0;
+    return `<div class="cuartel-card" onclick="this.style.boxShadow='0 6px 20px rgba(0,0,0,0.15)'">
+      <div class="species-bar" style="background:${color};"></div>
+      <div style="padding-left:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <span class="cuartel-num">C${c.n}</span>
+          <span style="font-size:16px;">${icon}</span>
+        </div>
+        <div class="cuartel-name">${c.var}</div>
+        <div class="cuartel-meta">
+          <span>${c.ha || '?'} ha</span>
+          <span>${c.anio}</span>
+        </div>
+        <div class="prog-bar"><div class="prog-fill" style="width:${pct}%;background:${color};"></div></div>
+        <div style="font-size:10px;color:var(--muted);margin-top:3px;">${c.vivas.toLocaleString()} vivas · ${pct}%</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterCuartel(filter, btn) {
+  document.querySelectorAll('.field-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderCuartelTable(filter);
+  renderCuartelCards(filter);
+}
+
+renderCuartelTable('all');
+renderCuartelCards('all');
+
+// Charts
+window.addEventListener('load', () => {
+  // Donut distribución DC
+  new Chart(document.getElementById('donut-main'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Avellano Giffoni', 'Kiwi Hayward', 'Sin plantar / accesos'],
+      datasets: [{
+        data: [41.71, 11.63, 6.66],
+        backgroundColor: ['#8a6a3a', '#5a9e30', '#b0a898'],
+        borderWidth: 2, borderColor: '#fff'
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 12 } }
+      }
+    }
+  });
+
+  // Bar especies red de campos
+  new Chart(document.getElementById('bar-especies'), {
+    type: 'bar',
+    data: {
+      labels: ['Avellano', 'Cerezos', 'Kiwi', 'Arándanos', 'Trufas'],
+      datasets: [{
+        label: 'Hectáreas plantadas (total red)',
+        data: [71.05, 36.12, 17.41, 32.63, 1.13],
+        backgroundColor: ['#8a6a3a', '#943f3f', '#5a9e30', '#6a3a8a', '#4a4a2a'],
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, ticks: { font: { size: 11 } } },
+        x: { ticks: { font: { size: 11 } } }
+      }
+    }
+  });
+
+  // Producción histórica
+  new Chart(document.getElementById('chart-prod'), {
+    type: 'bar',
+    data: {
+      labels: ['2017','2018','2019','2020','2021','2022','2023'],
+      datasets: [{
+        label: 'Kg producidos',
+        data: [395722, 438179, 451369, 625723, 799472, 870334, 1013221],
+        backgroundColor: '#5a9e4a', borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { ticks: { callback: v => (v/1000).toFixed(0)+'k', font: {size:11} } },
+        x: { ticks: { font: {size:11} } }
+      }
+    }
+  });
+
+  // Ingresos
+  new Chart(document.getElementById('chart-ingresos'), {
+    type: 'line',
+    data: {
+      labels: ['2017','2018','2019','2020','2021','2022','2023'],
+      datasets: [{
+        label: 'USD',
+        data: [174118, 166508, 230198, 375801, 822608, 1446908, 1787293],
+        borderColor: '#b87e1a', backgroundColor: 'rgba(184,126,26,0.1)',
+        fill: true, tension: 0.4, pointRadius: 4
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { ticks: { callback: v => '$'+(v/1000).toFixed(0)+'k', font:{size:11} } },
+        x: { ticks: { font:{size:11} } }
+      }
+    }
+  });
+
+  // Ha
+  new Chart(document.getElementById('chart-ha'), {
+    type: 'line',
+    data: {
+      labels: ['2016','2017','2018','2019','2020','2021','2022','2023'],
+      datasets: [{
+        label: 'Ha plantadas',
+        data: [17.41, 55.67, 81.38, 82.51, 111.85, 125.7, 125.7, 125.7],
+        borderColor: '#3a6e2f', backgroundColor: 'rgba(58,110,47,0.1)',
+        fill: true, tension: 0.3, pointRadius: 3
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { ticks: { font:{size:11} } }, x: { ticks: { font:{size:11} } } }
+    }
+  });
+
+  // Cosecheros
+  new Chart(document.getElementById('chart-cosecheros'), {
+    type: 'bar',
+    data: {
+      labels: ['2017','2018','2019','2020','2021','2022','2023'],
+      datasets: [{
+        label: 'Cosecheros',
+        data: [44, 52, 60, 85, 160, 350, 350],
+        backgroundColor: '#2a5f8f', borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { ticks: { font:{size:11} } }, x: { ticks: { font:{size:11} } } }
+    }
+  });
+
+  // Kiwi catastro barras
+  new Chart(document.getElementById('chart-kiwi'), {
+    type: 'bar',
+    data: {
+      labels: ['DC-C3','DC-C4','DC-C8','DC-C10','DI-C7','DI-C8','DI-C9','DI-C10'],
+      datasets: [
+        { label: 'Hembras 2023', data: [362,805,1045,3617,850,953,998,961], backgroundColor: '#5a9e30', borderRadius: 3 },
+        { label: 'Hembras 2025', data: [353,805,1053,3550,854,961,973,941], backgroundColor: '#a8d080', borderRadius: 3 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { font:{size:10} } } },
+      scales: {
+        y: { ticks: { font:{size:10} } },
+        x: { ticks: { font:{size:10} } }
+      }
+    }
+  });
+
+  // Relación hembra/macho
+  new Chart(document.getElementById('chart-sex'), {
+    type: 'bar',
+    data: {
+      labels: ['DC-C3','DC-C4','DC-C8','DC-C10'],
+      datasets: [
+        { label: 'Hembras', data: [362,805,1045,3617], backgroundColor: '#5a9e30' },
+        { label: 'Machos', data: [44,87,121,448], backgroundColor: '#b87e1a' }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      indexAxis: 'y',
+      plugins: { legend: { position: 'bottom', labels: { font:{size:10} } } },
+      scales: {
+        x: { ticks: { font:{size:10} } },
+        y: { ticks: { font:{size:10} } }
+      }
+    }
+  });
+});
+</script>
+<script>
+function initLeafletMap() {
+  if (typeof L === 'undefined') { setTimeout(initLeafletMap, 200); return; }
+
+  var map = L.map('leaflet-map', { zoomControl: true, scrollWheelZoom: true });
+  window._leafletMap = map;
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 19,
+    crossOrigin: true
+  }).addTo(map);
+
+  var kiwiStyle = { color: '#4a8e20', weight: 2, fillColor: '#7ab648', fillOpacity: 0.5 };
+  var aveStyle  = { color: '#8a6a3a', weight: 2, fillColor: '#c8a96e', fillOpacity: 0.45 };
+  var campoStyle = { color: '#3a6e2f', weight: 2.5, fillColor: '#3a6e2f', fillOpacity: 0.06, dashArray: '6,4' };
+  var zonaStyle  = { color: '#888', weight: 1.5, fillColor: '#888', fillOpacity: 0.15, dashArray: '4,3' };
+
+  function coords(arr) { return arr.map(function(c){ return [c[1], c[0]]; }); }
+
+  // PERÍMETRO CAMPO
+  L.polygon(coords([[-71.65341071855921,-35.6313366640968],[-71.65336062907681,-35.63143963583045],[-71.65319284263856,-35.63160941551046],[-71.6530158890252,-35.63173069287419],[-71.65290654379868,-35.63187165243365],[-71.65243734103845,-35.63304704524267],[-71.652372985475,-35.63318833158422],[-71.65234385459748,-35.63364753658545],[-71.65225694356062,-35.63438504194818],[-71.65220240378112,-35.63521854437745],[-71.65213170937106,-35.63589764682006],[-71.65208519134843,-35.63643789825174],[-71.6520539896031,-35.63678870519175],[-71.65203594063249,-35.63700853880643],[-71.65199017707322,-35.63733273203041],[-71.65209150680438,-35.63737622027103],[-71.65215955801804,-35.63775888725144],[-71.65215864781497,-35.63784285799844],[-71.65220867023464,-35.63800786089922],[-71.65228835890399,-35.64041516886829],[-71.64938064945122,-35.6405215164663],[-71.64906097317765,-35.64054896888128],[-71.64879465405457,-35.64060353641688],[-71.6416775061849,-35.64090837354771],[-71.64170385028821,-35.64083459301634],[-71.64726155220048,-35.63504351622343],[-71.64987051391655,-35.6323708884548],[-71.6531850882275,-35.62897388142253],[-71.65398209621549,-35.62906746575371],[-71.65393000109518,-35.62932139357254],[-71.65341071855921,-35.6313366640968]]), campoStyle)
+    .bindPopup('<b>Perímetro Campo Doña Cecilia</b><br>60 ha totales').addTo(map);
+
+  // CUARTEL 1 - Avellano
+  L.polygon(coords([[-71.65351226247077,-35.63087071903416],[-71.65183254677966,-35.63049141544487],[-71.6531711968521,-35.6290816833136],[-71.65394763576802,-35.62914818305663],[-71.65351226247077,-35.63087071903416]]), aveStyle)
+    .bindPopup('<b>Cuartel 1 — Avellano Giffoni</b><br>2.16 ha · Plantado 2017 · Marco 5×3<br>1,262 plantas vivas · Sistema Multieje · Goteo').addTo(map);
+
+  // CUARTEL 2 - Avellano
+  L.polygon(coords([[-71.65336850191214,-35.631373702019],[-71.65331483466511,-35.63139319778524],[-71.6513770539578,-35.63096789640551],[-71.65182323082274,-35.63049978656268],[-71.65350253644678,-35.63087883977115],[-71.65336850191214,-35.631373702019]]), aveStyle)
+    .bindPopup('<b>Cuartel 2 — Avellano Giffoni</b><br>0.97 ha · Plantado 2021 · Marco 5×3<br>519 plantas vivas · 49 muertas (8.6%)').addTo(map);
+
+  // CUARTEL 3 - Kiwi
+  L.polygon(coords([[-71.65309880705546,-35.63153447416624],[-71.65293621842814,-35.631604016274],[-71.65278203505098,-35.63163851860829],[-71.65262999873565,-35.63165414308601],[-71.65243477529258,-35.63168838724486],[-71.6522918515056,-35.63169459481832],[-71.65204587500897,-35.63167284469648],[-71.65191108311572,-35.63165726494243],[-71.65177205693999,-35.63164789939702],[-71.65164056800407,-35.63163539140081],[-71.65147378689103,-35.63161030488521],[-71.65136881445012,-35.63159772600298],[-71.65088799285923,-35.63147062457541],[-71.65135553847699,-35.63099925022273],[-71.65329285479402,-35.63144491266693],[-71.65309880705546,-35.63153447416624]]), kiwiStyle)
+    .bindPopup('<b>Cuartel 3 — Kiwi Hayward</b><br>0.93 ha · Plantado 1984 · Marco 5.5×4.5<br>362 hembras · 44 machos (Bruno) · Parrón · Microaspersión').addTo(map);
+
+  // CUARTEL 4 - Kiwi
+  L.polygon(coords([[-71.65247614460533,-35.63285911370743],[-71.65192434692834,-35.6327448354903],[-71.65167402402452,-35.63263161976622],[-71.65148810514634,-35.63255088779174],[-71.65133851981014,-35.63248495917202],[-71.65116781397963,-35.63243746603232],[-71.65101546082086,-35.63238963481646],[-71.65079911152952,-35.63233823741303],[-71.65062459628237,-35.63228969533389],[-71.65045704307542,-35.63224734265552],[-71.65059929888191,-35.63202144701883],[-71.65049734503903,-35.6319875923246],[-71.65056369703547,-35.63182276802291],[-71.65059423025166,-35.63176345095143],[-71.65082821412251,-35.63157166753134],[-71.65152499328686,-35.63172480936036],[-71.6515586571791,-35.631700103944],[-71.65195251103177,-35.63178445151672],[-71.65199109526361,-35.63175644723703],[-71.65283800706388,-35.63192966378134],[-71.65247614460533,-35.63285911370743]]), kiwiStyle)
+    .bindPopup('<b>Cuartel 4 — Kiwi Hayward</b><br>1.84 ha · Plantado 1984 · Marco 5.5×4.5<br>805 hembras · 87 machos (Bruno) · Parrón · Microaspersión').addTo(map);
+
+  // CUARTEL 5 - Avellano
+  L.polygon(coords([[-71.65231517649381,-35.63353513804739],[-71.6522118466774,-35.6346548026951],[-71.6521219074339,-35.63571083757548],[-71.6518425818229,-35.63571617692574],[-71.6499958631059,-35.63506017284029],[-71.6499377027119,-35.63245487879722],[-71.65043159718607,-35.63262249764391],[-71.65051797181164,-35.63261016056362],[-71.65053127615163,-35.6325047865431],[-71.65081142667366,-35.63249856175593],[-71.65090331550893,-35.63251723249518],[-71.65116280395452,-35.63258545045448],[-71.65142389755518,-35.63269626997972],[-71.65174443550816,-35.6328243051782],[-71.65194616115814,-35.63291494329032],[-71.65210981949572,-35.63298867272614],[-71.6522204612822,-35.63307202742826],[-71.65222652328369,-35.63321077624725],[-71.65229934593007,-35.63322391109026],[-71.65231517649381,-35.63353513804739]]), aveStyle)
+    .bindPopup('<b>Cuartel 5 — Avellano Giffoni</b><br>6.30 ha · Plantado 2017 · Marco 5×3<br>3,463 plantas vivas · 3 muertas · Multieje · Goteo').addTo(map);
+
+  // CUARTEL 6 - Avellano
+  L.polygon(coords([[-71.64999387761561,-35.63505657039828],[-71.64813519088635,-35.6343908869929],[-71.648143320066,-35.63424977481014],[-71.64948786680715,-35.63285240752925],[-71.64993220435123,-35.63245922752695],[-71.64999387761561,-35.63505657039828]]), aveStyle)
+    .bindPopup('<b>Cuartel 6 — Avellano Giffoni</b><br>2.57 ha · Plantado 2017 · Marco 5×3<br>1,831 plantas vivas · 5 muertas · Multieje · Goteo').addTo(map);
+
+  // CUARTEL 7 - Avellano
+  L.polygon(coords([[-71.65201908587782,-35.63695888231299],[-71.65136232702255,-35.63675957548566],[-71.65132104608344,-35.637191559851],[-71.65075532654127,-35.63700683438959],[-71.65053579535527,-35.63687852007197],[-71.65019892669342,-35.63664374982205],[-71.6497979590777,-35.63632471871516],[-71.6505779438148,-35.63542082668965],[-71.65210062709923,-35.63596626346711],[-71.65201908587782,-35.63695888231299]]), aveStyle)
+    .bindPopup('<b>Cuartel 7 — Avellano Giffoni</b><br>2.44 ha · Plantado 2021 · Marco 5×3<br>1,385 plantas vivas · <span style="color:#943f3f">122 muertas (8%)</span> · Multieje · Goteo').addTo(map);
+
+  // CUARTEL 8 - Kiwi
+  L.polygon(coords([[-71.64980737683739,-35.6361973399453],[-71.64955239095899,-35.63611990104353],[-71.64871433050722,-35.63545090215445],[-71.6486206370759,-35.63535846022922],[-71.64849730855055,-35.63526962510593],[-71.64837302363009,-35.63522408936853],[-71.64810050695152,-35.63503935971826],[-71.64771309809336,-35.63479245167844],[-71.64770777928973,-35.63474443871456],[-71.64801467905826,-35.63441821065189],[-71.6504916738791,-35.63538386915172],[-71.64980737683739,-35.6361973399453]]), kiwiStyle)
+    .bindPopup('<b>Cuartel 8 — Kiwi Hayward</b><br>1.99 ha · Plantado 1986 · Marco 4.5×3.5<br>1,045 hembras · 121 machos · <span style="color:#943f3f">108 muertas (9.3%)</span> · Parrón').addTo(map);
+
+  // CUARTEL 9 - Avellano
+  L.polygon(coords([[-71.65206225939885,-35.63759832120695],[-71.6521595125622,-35.6382108016453],[-71.65215184052514,-35.6385037988635],[-71.65156578637327,-35.63848401178187],[-71.65061055364271,-35.63846908933873],[-71.64986269319746,-35.63844402292562],[-71.64884323445445,-35.63841873289179],[-71.64794536691613,-35.63838251241692],[-71.6479630506019,-35.6380806343463],[-71.6480324000807,-35.63767849997426],[-71.64811909066957,-35.63719579231753],[-71.64818870657832,-35.63661898949124],[-71.64826742812038,-35.63626815450729],[-71.64834651595669,-35.63583194633369],[-71.64843610640109,-35.6355020143227],[-71.6485530534413,-35.63557362376305],[-71.64891397691801,-35.63586839088366],[-71.6491561752022,-35.63608271504357],[-71.64933888963569,-35.63622928204894],[-71.64964336806128,-35.63645467333358],[-71.64999840043066,-35.63670420950699],[-71.65026342196415,-35.63689150968234],[-71.65061763949481,-35.63710850747602],[-71.65079750119843,-35.63719297959661],[-71.65115368691224,-35.63730857040784],[-71.65143468684744,-35.63739188406344],[-71.65162912435554,-35.63742432318275],[-71.65190161939395,-35.63745464527373],[-71.65202118849386,-35.63748688418483],[-71.65206225939885,-35.63759832120695]]), aveStyle)
+    .bindPopup('<b>Cuartel 9 — Avellano Giffoni</b><br>7.19 ha · Plantado 2017 · Marco 5×3<br>4,225 plantas vivas · 5 muertas · Multieje · Goteo').addTo(map);
+
+  // CUARTEL 10 - Kiwi (mayor)
+  L.polygon(coords([[-71.64786886893275,-35.63838666720021],[-71.64638532553695,-35.63826567134935],[-71.64511926845164,-35.63816864645964],[-71.64484821807677,-35.63773323061704],[-71.6456049081284,-35.63694025784344],[-71.64604433071007,-35.63648928994333],[-71.64658750109689,-35.63592449288443],[-71.6472552617086,-35.63522591963134],[-71.64825893397568,-35.63534602137089],[-71.64834647540518,-35.63541982392231],[-71.64786886893275,-35.63838666720021]]), kiwiStyle)
+    .bindPopup('<b>Cuartel 10 — Kiwi Hayward (MAYOR)</b><br>6.87 ha · Plantado 1986 · Marco 4.5×3.5<br>3,617 hembras · 448 machos · <span style="color:#943f3f">252 muertas (6.2%)</span><br>Parrón · Microaspersión · Portainjerto Bruno').addTo(map);
+
+  // CUARTEL 11 - Avellano
+  L.polygon(coords([[-71.65218915307167,-35.63875563922685],[-71.6522235721234,-35.63939070046432],[-71.65223800617301,-35.64005143032643],[-71.6522369708661,-35.64025127256306],[-71.65217748743038,-35.64036211636254],[-71.65153581003953,-35.64038031895922],[-71.65118331112504,-35.64040854786497],[-71.65072871357208,-35.64042025158577],[-71.65048773448662,-35.64041792682751],[-71.6498258255241,-35.64045509503797],[-71.64939055781772,-35.64044817443533],[-71.64915785975224,-35.64046663716366],[-71.64893316068168,-35.64053945400907],[-71.64829834909291,-35.64057527554977],[-71.64781433174582,-35.64059082688296],[-71.64740100039288,-35.64060630065934],[-71.64744325182531,-35.64059081820072],[-71.64755568251505,-35.6384138196462],[-71.64802731926069,-35.63844451548584],[-71.65215143915255,-35.63855476278692],[-71.65218915307167,-35.63875563922685]]), aveStyle)
+    .bindPopup('<b>Cuartel 11 — Avellano Giffoni</b><br>8.58 ha · Plantado 2017 · Marco 5×3<br>3,880 plantas vivas · 21 muertas · Multieje · Goteo').addTo(map);
+
+  // CUARTEL 12 - Avellano (mayor)
+  L.polygon(coords([[-71.6474007256856,-35.64060224210497],[-71.64626886986447,-35.640662613268],[-71.64540195474486,-35.64069594080053],[-71.64485520064457,-35.64070256173975],[-71.64457449820068,-35.64072673602786],[-71.6442944955662,-35.64074855397664],[-71.6439718154731,-35.64073328880266],[-71.64361220833226,-35.64075505904483],[-71.64292757834694,-35.64080244301579],[-71.64253638471267,-35.64080883990781],[-71.64231771716092,-35.64083222587355],[-71.64203260989156,-35.6408575379995],[-71.64190719087262,-35.64083856027537],[-71.64190145829873,-35.64075501168658],[-71.64253167416467,-35.64008308540107],[-71.64260153596824,-35.64008953588927],[-71.64283948685414,-35.63995358321372],[-71.64287660726804,-35.63980235369912],[-71.643326052777,-35.63934000765146],[-71.64380072653309,-35.63879527148355],[-71.64419934693976,-35.63838936177972],[-71.6444505075451,-35.63816174878709],[-71.64489336341963,-35.63817587721304],[-71.64550729306409,-35.63825673812472],[-71.64588578046525,-35.63828694314567],[-71.64751319083084,-35.63841381326508],[-71.6474007256856,-35.64060224210497]]), aveStyle)
+    .bindPopup('<b>Cuartel 12 — Avellano Giffoni (MAYOR)</b><br>11.50 ha · Plantado 2017 · Marco 5×3<br>4,187 plantas vivas · 22 muertas · Multieje · Goteo').addTo(map);
+
+  // ZONA 1
+  L.polygon(coords([[-71.64500041559431,-35.63812616862685],[-71.64450965577471,-35.63808922885352],[-71.64479560420479,-35.63778253055874],[-71.64500041559431,-35.63812616862685]]), zonaStyle)
+    .bindPopup('<b>Zona 1</b><br>Zona especial / infraestructura').addTo(map);
+
+  // ZONA 2
+  L.polygon(coords([[-71.6503993920007,-35.6322551711545],[-71.65020793858885,-35.63207534839556],[-71.65033268385262,-35.63198447933906],[-71.65048472930023,-35.63204951015305],[-71.6503993920007,-35.6322551711545]]), zonaStyle)
+    .bindPopup('<b>Zona 2</b><br>Zona especial / infraestructura').addTo(map);
+
+  // Fit map to campo bounds
+  map.fitBounds([[-35.6409, -71.6540], [-35.6289, -71.6419]]);
+
+  // Force tile refresh after short delay
+  setTimeout(function() {
+    map.invalidateSize();
+    map.fitBounds([[-35.6409, -71.6540], [-35.6289, -71.6419]]);
+  }, 300);
+}
+
+// Init map only when tab becomes visible to avoid blank tile issue
+window._mapInited = false;
+function maybeInitMap() {
+  if (!window._mapInited && typeof L !== 'undefined') {
+    window._mapInited = true;
+    initLeafletMap();
+  }
+}
+// Also init on DOMContentLoaded in case mapa tab is active by default
+document.addEventListener('DOMContentLoaded', function() {
+  if (document.getElementById('tab-mapa') && document.getElementById('tab-mapa').classList.contains('active')) {
+    maybeInitMap();
+  }
+});
+</script>
+</body>
+</html>
