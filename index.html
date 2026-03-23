@@ -349,6 +349,8 @@ tr:hover td { background: var(--card2); }
   <div class="tab" onclick="showTab('kiwi')">Kiwi</div>
   <div class="tab" onclick="showTab('fenologia')">Fenología & Carta Gantt</div>
   <div class="tab" onclick="showTab('recursos')">Recursos CDK</div>
+  <div class="tab" onclick="showTab('ceres');ceresTabOpen()">🛰 Ceres Imaging</div>
+  <div class="tab" onclick="showTab('timeline');tlTabOpen()">📈 Temporada</div>
 </div>
 
 <!-- ============ RESUMEN ============ -->
@@ -2295,5 +2297,960 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 </script>
+
+<!-- ============ CERES IMAGING TAB ============ -->
+<div id="tab-ceres" class="section">
+<style>
+.ceres-base { font-family: inherit; }
+.ctoken-box { background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;max-width:480px;margin:0 auto 24px; }
+.ctoken-box h3 { font-family:'Bitter',serif;font-size:17px;font-weight:600;margin-bottom:4px; }
+.ctoken-box p { font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:14px; }
+.ctoken-steps { background:var(--card2);border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:12px;line-height:1.9; }
+.ctoken-steps code { background:rgba(0,0,0,0.07);padding:1px 6px;border-radius:4px;font-family:monospace;font-size:11px; }
+.ci { width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--card);color:var(--text);margin-bottom:10px; }
+.ci:focus { outline:none;border-color:#1a7a5a; }
+.cbtn { width:100%;padding:9px;background:#1a7a5a;color:#fff;border:none;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer; }
+.cbtn:hover { background:#156349; }
+.cbtn:disabled { background:#aaa;cursor:not-allowed; }
+.cbtn-sm { padding:5px 12px;font-size:11px;border:1px solid var(--border);border-radius:6px;background:var(--card);cursor:pointer; }
+.cbtn-sm:hover { background:var(--card2); }
+.cbtn-danger { border-color:var(--cherry);color:var(--cherry); }
+.cerr { color:var(--cherry);font-size:12px;margin-top:6px;display:none; }
+
+/* Status bar */
+.csbar { display:flex;align-items:center;gap:10px;padding:9px 14px;border-radius:8px;font-size:12.5px;margin-bottom:18px; }
+.csbar.ok { background:#e8f2e4;border:1px solid #5a9e4a; }
+.csbar.err { background:#faeaea;border:1px solid var(--cherry); }
+.csdot { width:9px;height:9px;border-radius:50%;flex-shrink:0; }
+.csdot.green { background:#5a9e4a; }
+.csdot.red { background:#943f3f; }
+
+/* Layer pills */
+.clayer-pills { display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px; }
+.clpill { padding:5px 12px;border-radius:20px;border:1.5px solid var(--border);background:var(--card);font-size:12px;font-weight:500;cursor:pointer;transition:all 0.15s; }
+.clpill:hover { border-color:#1a7a5a; }
+.clpill.active { background:#1a7a5a;color:#fff;border-color:#1a7a5a; }
+.clpill.ws.active { background:#2a5f8f;border-color:#2a5f8f; }
+.clpill.ph.active { background:#7a5a2a;border-color:#7a5a2a; }
+.clpill.chl.active { background:#156349;border-color:#156349; }
+
+/* Visit list */
+.cvlist { display:flex;flex-direction:column;gap:5px;max-height:280px;overflow-y:auto; }
+.cvitem { padding:7px 11px;border:1px solid var(--border);border-radius:7px;cursor:pointer;font-size:12px;transition:all 0.15s;display:flex;align-items:center;gap:8px; }
+.cvitem:hover { border-color:#1a7a5a;background:#e8f2e4; }
+.cvitem.active { border-color:#1a7a5a;background:#e8f2e4;font-weight:600; }
+.cvdate { font-weight:600;min-width:88px; }
+.cvtags { display:flex;gap:3px;flex-wrap:wrap; }
+.cvtag { font-size:10px;padding:1px 5px;border-radius:8px; }
+
+/* Colorbar */
+.ccolorbar { display:flex;height:12px;border-radius:4px;overflow:hidden;margin-bottom:3px; }
+.ccblabels { display:flex;justify-content:space-between;font-size:10px;color:var(--muted); }
+
+/* Field select */
+.cfield-sel { width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12.5px;background:var(--card);color:var(--text); }
+
+/* Stats */
+.cstats { display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px; }
+.cstat { background:var(--card2);border-radius:7px;padding:9px 10px;text-align:center; }
+.cstatv { font-family:'Bitter',serif;font-size:19px;font-weight:700; }
+.cstatl { font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;margin-top:2px; }
+
+/* Overlay thumbnail */
+.cthumb-row { display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px; }
+.cthumb { border-radius:8px;overflow:hidden;border:2px solid var(--border);cursor:pointer;transition:border-color 0.15s;flex:1;min-width:120px;max-width:200px; }
+.cthumb:hover { border-color:#1a7a5a; }
+.cthumb.active { border-color:#1a7a5a;border-width:2px; }
+.cthumb img { width:100%;height:90px;object-fit:cover;display:block; }
+.cthumb-lbl { font-size:10px;padding:4px 6px;text-align:center;color:var(--muted);background:var(--card2); }
+
+/* Map */
+#ceres-map2 { height:460px;border-radius:10px;overflow:hidden;border:1px solid var(--border); }
+
+/* Cross table */
+.ctcross th { padding:7px 10px;text-align:left;font-weight:500;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:0.4px;border-bottom:1px solid var(--border);background:var(--card2); }
+.ctcross td { padding:8px 10px;border-bottom:1px solid rgba(0,0,0,0.04);font-size:12.5px; }
+.ctcross tr:hover td { background:var(--card2); }
+
+/* Temporal chart */
+#ctemp-wrap { position:relative;height:190px; }
+</style>
+
+<div class="container">
+  <div class="sec-title"><span class="dot" style="background:#1a7a5a"></span>Ceres Imaging — Imágenes multiespectrales</div>
+
+  <!-- TOKEN SETUP PANEL -->
+  <div id="c-setup" style="display:none;">
+    <div class="ctoken-box">
+      <h3>Conectar con Ceres Imaging</h3>
+      <p>Ingresa tu token de API. Se guarda solo en tu navegador (localStorage), nunca sale de tu máquina.</p>
+      <div class="ctoken-steps">
+        <strong>Cómo obtener tu token:</strong><br>
+        1. Abre una terminal<br>
+        2. Ejecuta:<br>
+        <code>curl -u "tu_email:tu_clave" https://works.ceresimaging.net/api/user_data/</code><br>
+        3. Copia el valor de <code>works_client_token</code>
+      </div>
+      <input class="ci" type="password" id="c-token-input" placeholder="Pega aquí tu works_client_token">
+      <button class="cbtn" onclick="ceresConnect()">Conectar</button>
+      <div class="cerr" id="c-err"></div>
+    </div>
+  </div>
+
+  <!-- MAIN PANEL -->
+  <div id="c-main" style="display:none;">
+
+    <!-- Status bar -->
+    <div class="csbar ok" id="c-sbar">
+      <div class="csdot green"></div>
+      <span id="c-sbar-txt">Conectado a Ceres Imaging</span>
+      <button class="cbtn-sm cbtn-danger" onclick="ceresDisconnect()" style="margin-left:auto;">Desconectar</button>
+    </div>
+
+    <!-- Top layout: map + controls -->
+    <div class="grid-2-1" style="margin-bottom:0;">
+
+      <!-- MAP -->
+      <div>
+        <!-- Layer selector -->
+        <div class="clayer-pills">
+          <div class="clpill active" onclick="ceresSetLayer('absolute_ndvi',this)">NDVI</div>
+          <div class="clpill ws" onclick="ceresSetLayer('water_stress',this)">Estrés Hídrico</div>
+          <div class="clpill ph" onclick="ceresSetLayer('plant_health',this)">Salud Vegetal</div>
+          <div class="clpill chl" onclick="ceresSetLayer('chlorophyll',this)">Clorofila</div>
+        </div>
+        <!-- Colorbar -->
+        <div id="c-cbar-wrap" style="margin-bottom:10px;">
+          <div class="ccolorbar" id="c-cbar"></div>
+          <div class="ccblabels"><span id="c-cbar-min">Bajo</span><span id="c-cbar-mid">Medio</span><span id="c-cbar-max">Alto</span></div>
+        </div>
+        <!-- Map -->
+        <div id="ceres-map2"></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;text-align:center;" id="c-map-hint">Selecciona un overlay para visualizarlo sobre los cuarteles</div>
+      </div>
+
+      <!-- RIGHT PANEL -->
+      <div style="display:flex;flex-direction:column;gap:12px;">
+
+        <!-- Field selector -->
+        <div class="card card-tight">
+          <div style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:7px;">Campo / Cuartel Ceres</div>
+          <select class="cfield-sel" id="c-field-sel" onchange="ceresLoadOverlays()">
+            <option value="">Cargando campos...</option>
+          </select>
+        </div>
+
+        <!-- Stats -->
+        <div class="card card-tight">
+          <div style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Overlay activo</div>
+          <div class="cstats">
+            <div class="cstat"><div class="cstatv" id="c-stat-ndvi">—</div><div class="cstatl">NDVI medio</div></div>
+            <div class="cstat"><div class="cstatv" id="c-stat-date">—</div><div class="cstatl">Fecha vuelo</div></div>
+            <div class="cstat"><div class="cstatv" id="c-stat-type">—</div><div class="cstatl">Tipo capa</div></div>
+          </div>
+        </div>
+
+        <!-- Thumbnails de overlays disponibles -->
+        <div class="card card-tight" style="flex:1;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Imágenes disponibles</div>
+            <span id="c-overlay-cnt" style="font-size:10px;color:var(--muted);"></span>
+          </div>
+          <div class="cvlist" id="c-overlay-list">
+            <div style="font-size:12px;color:var(--muted);padding:6px;">Selecciona un campo para ver imágenes</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- THUMBNAILS row -->
+    <div class="card" style="margin-top:14px;">
+      <div class="sec-title" style="margin-bottom:10px;font-size:14px;"><span class="dot" style="background:#1a7a5a"></span>Galería de overlays por tipo</div>
+      <div class="cthumb-row" id="c-thumb-row">
+        <div style="font-size:12px;color:var(--muted);">Carga overlays para ver las miniaturas</div>
+      </div>
+    </div>
+
+    <!-- TEMPORAL CHART -->
+    <div class="card" style="margin-top:14px;">
+      <div class="sec-title" style="margin-bottom:10px;font-size:14px;"><span class="dot" style="background:#1a7a5a"></span>Serie temporal NDVI</div>
+      <div id="ctemp-wrap"><canvas id="c-temp-chart"></canvas></div>
+      <div style="font-size:11px;color:var(--muted);text-align:center;margin-top:6px;" id="c-temp-hint">Carga overlays NDVI para ver evolución temporal</div>
+    </div>
+
+    <!-- CROSS ANALYSIS -->
+    <div class="card" style="margin-top:14px;">
+      <div class="sec-title" style="margin-bottom:10px;font-size:14px;"><span class="dot" style="background:#1a7a5a"></span>Cruce Ceres × Catastro — Cuarteles kiwi</div>
+      <div id="c-cross-wrap">
+        <div style="font-size:12px;color:var(--muted);">Carga un overlay NDVI para ver análisis por cuartel</div>
+      </div>
+    </div>
+
+  </div><!-- /c-main -->
+</div>
+</div>
+
+<script>
+// ============================================================
+// CERES IMAGING — Token-based, no proxy needed
+// ============================================================
+var CERES = 'https://works.ceresimaging.net';
+var ceresToken = null;
+var ceresMap2 = null;
+var ceresOverlayLayer = null;
+var ceresCurrentLayerType = 'absolute_ndvi';
+var ceresAllOverlays = [];
+var cTempChart = null;
+var ceresUserId = null;
+
+var layerCfg = {
+  absolute_ndvi: { label:'NDVI', min:'Bajo (0)', mid:'0.5', max:'Alto (1)', colors:['#d73027','#f46d43','#fdae61','#fee08b','#d9ef8b','#a6d96a','#66bd63','#1a9850'] },
+  water_stress:  { label:'Estrés Hídrico', min:'Sin estrés', mid:'Moderado', max:'Alto', colors:['#1a9850','#66bd63','#fee08b','#fdae61','#f46d43','#d73027','#a50026','#67001f'] },
+  plant_health:  { label:'Salud Vegetal', min:'Baja', mid:'Normal', max:'Óptima', colors:['#d73027','#f46d43','#fee08b','#d9ef8b','#a6d96a','#66bd63','#1a9850','#006837'] },
+  chlorophyll:   { label:'Clorofila', min:'Bajo N', mid:'Normal', max:'Alto N', colors:['#fff7bc','#fee391','#fec44f','#fe9929','#ec7014','#cc4c02','#993404','#662506'] }
+};
+
+function ceresApiFetch(path) {
+  return fetch(CERES + path, {
+    headers: { 'Authorization': 'Token ' + ceresToken, 'Accept': 'application/json' }
+  }).then(function(r) {
+    if (r.status === 401) throw new Error('Token inválido o expirado');
+    if (!r.ok) throw new Error('Error ' + r.status + ' en ' + path);
+    return r.json();
+  });
+}
+
+function ceresConnect() {
+  var t = document.getElementById('c-token-input').value.trim();
+  var err = document.getElementById('c-err');
+  if (!t) { err.textContent='Ingresa el token'; err.style.display='block'; return; }
+  err.style.display = 'none';
+  ceresToken = t;
+  // Validate token by calling user_data
+  ceresApiFetch('/api/user_data/')
+    .then(function(data) {
+      ceresUserId = data.id;
+      localStorage.setItem('ceres_token', t);
+      localStorage.setItem('ceres_user_id', data.id);
+      document.getElementById('c-sbar-txt').textContent =
+        'Conectado — ' + (data.email || data.username || 'usuario');
+      document.getElementById('c-setup').style.display = 'none';
+      document.getElementById('c-main').style.display = 'block';
+      initCeresMap2();
+      ceresLoadFields();
+    })
+    .catch(function(e) {
+      err.textContent = e.message;
+      err.style.display = 'block';
+      ceresToken = null;
+    });
+}
+
+function ceresDisconnect() {
+  localStorage.removeItem('ceres_token');
+  localStorage.removeItem('ceres_user_id');
+  ceresToken = null; ceresUserId = null;
+  document.getElementById('c-main').style.display = 'none';
+  document.getElementById('c-setup').style.display = 'block';
+  document.getElementById('c-token-input').value = '';
+}
+
+function ceresInit() {
+  var saved = localStorage.getItem('ceres_token');
+  var savedId = localStorage.getItem('ceres_user_id');
+  if (saved) {
+    ceresToken = saved;
+    ceresUserId = savedId ? parseInt(savedId) : null;
+    // Verify it still works
+    ceresApiFetch('/api/user_data/')
+      .then(function(data) {
+        ceresUserId = data.id;
+        localStorage.setItem('ceres_user_id', data.id);
+        document.getElementById('c-sbar-txt').textContent =
+          'Conectado — ' + (data.email || data.username || 'usuario');
+        document.getElementById('c-setup').style.display = 'none';
+        document.getElementById('c-main').style.display = 'block';
+        initCeresMap2();
+        ceresLoadFields();
+      })
+      .catch(function() {
+        ceresToken = null;
+        document.getElementById('c-setup').style.display = 'block';
+        document.getElementById('c-main').style.display = 'none';
+      });
+  } else {
+    document.getElementById('c-setup').style.display = 'block';
+  }
+}
+
+function ceresLoadFields() {
+  if (!ceresUserId) {
+    // Try getting fields directly via overlays
+    ceresApiFetch('/api/overlays/?for_last_days=180&page_size=100')
+      .then(function(data) {
+        var overlays = data.results || data || [];
+        // Extract unique fields
+        var fields = {};
+        overlays.forEach(function(o) {
+          if (o.field_id) fields[o.field_id] = o.field_name || ('Field ' + o.field_id);
+        });
+        var sel = document.getElementById('c-field-sel');
+        var keys = Object.keys(fields);
+        if (keys.length) {
+          sel.innerHTML = '<option value="">— Seleccionar campo —</option>' +
+            keys.map(function(k) { return '<option value="'+k+'">'+fields[k]+'</option>'; }).join('');
+        } else {
+          sel.innerHTML = '<option value="">Sin campos disponibles</option>';
+        }
+      })
+      .catch(function(e) {
+        document.getElementById('c-field-sel').innerHTML = '<option>Error: ' + e.message + '</option>';
+      });
+    return;
+  }
+  // Use admin_groups to get full hierarchy
+  ceresApiFetch('/api/admin_groups/root/' + ceresUserId + '/CFF/')
+    .then(function(customers) {
+      var sel = document.getElementById('c-field-sel');
+      sel.innerHTML = '<option value="">— Seleccionar campo —</option>';
+      // Add customers as optgroups, then load their farms/fields lazily
+      if (!customers.length) {
+        sel.innerHTML = '<option value="">Sin campos disponibles</option>';
+        return;
+      }
+      // Just show each customer as selectable for now, fields load on select
+      customers.forEach(function(c) {
+        var opt = document.createElement('option');
+        opt.value = 'customer:' + c.key;
+        opt.textContent = c.name + ' (todos los campos)';
+        sel.appendChild(opt);
+      });
+      // Also get all overlays to populate field options
+      ceresApiFetch('/api/overlays/?for_last_days=180&page_size=100')
+        .then(function(data) {
+          var overlays = data.results || [];
+          var fields = {};
+          overlays.forEach(function(o) {
+            if (o.field_id) fields[o.field_id] = o.field_name || ('Field ' + o.field_id);
+          });
+          sel.innerHTML = '<option value="">— Seleccionar campo —</option>';
+          Object.keys(fields).forEach(function(k) {
+            var opt = document.createElement('option');
+            opt.value = k;
+            opt.textContent = fields[k];
+            sel.appendChild(opt);
+          });
+          if (!Object.keys(fields).length) {
+            sel.innerHTML = '<option value="">Sin imágenes disponibles en los últimos 180 días</option>';
+          }
+        });
+    })
+    .catch(function() {
+      // Fallback: load overlays directly
+      ceresApiFetch('/api/overlays/?for_last_days=365&page_size=100')
+        .then(function(data) {
+          var overlays = data.results || [];
+          var fields = {};
+          overlays.forEach(function(o) {
+            if (o.field_id) fields[o.field_id] = o.field_name || ('Field ' + o.field_id);
+          });
+          var sel = document.getElementById('c-field-sel');
+          sel.innerHTML = '<option value="">— Seleccionar campo —</option>';
+          Object.keys(fields).forEach(function(k) {
+            var opt = document.createElement('option');
+            opt.value = k;
+            opt.textContent = fields[k];
+            sel.appendChild(opt);
+          });
+        })
+        .catch(function(e) {
+          document.getElementById('c-field-sel').innerHTML = '<option>Error: ' + e.message + '</option>';
+        });
+    });
+}
+
+function ceresLoadOverlays() {
+  var fieldId = document.getElementById('c-field-sel').value;
+  if (!fieldId || fieldId.startsWith('customer:')) {
+    // Load all recent overlays for the customer
+    ceresApiFetch('/api/overlays/?for_last_days=180&page_size=50&ordering=-flight_date')
+      .then(ceresRenderOverlays).catch(function(e){
+        document.getElementById('c-overlay-list').innerHTML =
+          '<div style="color:var(--cherry);font-size:12px;padding:6px;">Error: '+e.message+'</div>';
+      });
+    return;
+  }
+  document.getElementById('c-overlay-list').innerHTML =
+    '<div style="font-size:12px;color:var(--muted);padding:6px;">Cargando...</div>';
+  ceresApiFetch('/api/overlays/?field=' + fieldId + '&for_last_days=365&page_size=50&ordering=-flight_date')
+    .then(ceresRenderOverlays)
+    .catch(function(e) {
+      document.getElementById('c-overlay-list').innerHTML =
+        '<div style="color:var(--cherry);font-size:12px;padding:6px;">Error: ' + e.message + '</div>';
+    });
+}
+
+function ceresRenderOverlays(data) {
+  ceresAllOverlays = data.results || data || [];
+  var cnt = document.getElementById('c-overlay-cnt');
+  cnt.textContent = ceresAllOverlays.length + ' imagen' + (ceresAllOverlays.length!==1?'es':'');
+
+  // Filter to active layer type
+  var filtered = ceresAllOverlays.filter(function(o) {
+    return (o.overlay_type || '').toLowerCase().replace(/\s/g,'_') === ceresCurrentLayerType ||
+           (o.display_name || '').toLowerCase().includes(ceresCurrentLayerType.replace('_',' ')) ||
+           (o.overlay_type || '').toLowerCase().includes(ceresCurrentLayerType.replace('absolute_','').replace('_stress',''));
+  });
+  if (!filtered.length) filtered = ceresAllOverlays.slice(0,20);
+
+  var list = document.getElementById('c-overlay-list');
+  list.innerHTML = filtered.map(function(o) {
+    var date = (o.flight_date || o.created_at || '—').substring(0,10);
+    var type = o.overlay_type || o.display_name || '—';
+    var tc = type.toLowerCase().includes('ndvi')?'#3a8a2a':
+             type.toLowerCase().includes('water')?'#2a5f8f':
+             type.toLowerCase().includes('chlor')?'#1a7a5a':'#8a6a3a';
+    return '<div class="cvitem" onclick="ceresSelectOverlay(\''+o.id+'\',this)">'
+      +'<span class="cvdate">'+date+'</span>'
+      +'<div class="cvtags"><span class="cvtag" style="background:'+tc+'22;color:'+tc+';">'+type+'</span></div>'
+      +'</div>';
+  }).join('') || '<div style="font-size:12px;color:var(--muted);padding:6px;">Sin imágenes para este tipo de capa</div>';
+
+  // Thumbnails by type
+  renderCeresThumbs(ceresAllOverlays);
+  // Temporal chart (NDVI overlays)
+  renderCeresTemporal(ceresAllOverlays);
+  // Auto-select first
+  if (filtered.length) {
+    ceresSelectOverlay(filtered[0].id, list.querySelector('.cvitem'));
+  }
+}
+
+function ceresSelectOverlay(id, el) {
+  document.querySelectorAll('.cvitem').forEach(function(i){i.classList.remove('active');});
+  document.querySelectorAll('.cthumb').forEach(function(t){t.classList.remove('active');});
+  if (el) el.classList.add('active');
+  var o = ceresAllOverlays.find(function(x){return String(x.id)===String(id);});
+  if (!o) return;
+
+  // Update stats
+  var date = (o.flight_date||o.created_at||'—').substring(0,10);
+  document.getElementById('c-stat-date').textContent = date;
+  document.getElementById('c-stat-type').textContent = (o.overlay_type||o.display_name||'—').substring(0,8);
+  document.getElementById('c-stat-ndvi').textContent = o.min_value!=null ? parseFloat(o.min_value).toFixed(2)+'–'+parseFloat(o.max_value).toFixed(2) : '—';
+  document.getElementById('c-map-hint').textContent = (o.overlay_type||o.display_name||'Overlay') + ' · ' + date;
+
+  // Add tile layer to map
+  if (ceresMap2) {
+    if (ceresOverlayLayer) { ceresMap2.removeLayer(ceresOverlayLayer); ceresOverlayLayer = null; }
+    // Ceres tile URL format from overlay URL
+    // Try to construct tile URL or use thumbnail as overlay
+    var tileUrl = null;
+    // Grid data overlays have grid_types with xyz_url
+    if (o.grid_types && o.grid_types.length) {
+      var defaultGrid = o.grid_types.find(function(g){return g.default;}) || o.grid_types[0];
+      tileUrl = defaultGrid.xyz_url;
+    } else if (o.url && o.url.includes('{z}')) {
+      tileUrl = o.url;
+    } else if (o.url && o.url.includes('ceresimaging.net') && !o.url.includes('.tif')) {
+      tileUrl = o.url + '/{z}/{x}/{y}.mvt';
+    }
+    if (tileUrl) {
+      ceresOverlayLayer = L.tileLayer(tileUrl, {
+        opacity: 0.8,
+        headers: { 'Authorization': 'Token ' + ceresToken },
+        attribution: '© Ceres Imaging'
+      });
+      ceresOverlayLayer.addTo(ceresMap2);
+    } else if (o.thumbnail_url) {
+      // Use thumbnail as image overlay (approximate bounds from field data)
+      var bounds = [[-35.6409, -71.6540], [-35.6289, -71.6419]];
+      ceresOverlayLayer = L.imageOverlay(o.thumbnail_url, bounds, { opacity: 0.75 });
+      ceresOverlayLayer.addTo(ceresMap2);
+      document.getElementById('c-map-hint').textContent = '* Miniatura aproximada (imagen de baja resolución). URL directo de descarga disponible.';
+    }
+  }
+  // Highlight matching thumb
+  var thumbEl = document.getElementById('cthumb-'+id);
+  if (thumbEl) thumbEl.classList.add('active');
+}
+
+function renderCeresThumbs(overlays) {
+  // Show latest of each type
+  var byType = {};
+  overlays.forEach(function(o) {
+    var t = (o.overlay_type || o.display_name || 'other').toLowerCase();
+    if (!byType[t]) byType[t] = o;
+  });
+  var html = '';
+  var types = ['absolute_ndvi','ndvi','water_stress','plant_health','chlorophyll'];
+  types.forEach(function(t) {
+    var o = byType[t] || byType[t.replace('absolute_','')];
+    if (!o) return;
+    var date = (o.flight_date||o.created_at||'—').substring(0,10);
+    var thumb = o.thumbnail_url || '';
+    html += '<div class="cthumb" id="cthumb-'+o.id+'" onclick="ceresSelectOverlay(\''+o.id+'\',null)">'
+      + (thumb ? '<img src="'+thumb+'" alt="'+t+'" loading="lazy" onerror="this.style.display=\'none\'">'
+                : '<div style="height:90px;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:20px;">🛰</div>')
+      + '<div class="cthumb-lbl">'+t.replace('absolute_','').replace('_',' ').toUpperCase()+'<br>'+date+'</div></div>';
+  });
+  document.getElementById('c-thumb-row').innerHTML = html || '<div style="font-size:12px;color:var(--muted);">Sin miniaturas disponibles</div>';
+}
+
+function renderCeresTemporal(overlays) {
+  var ndviOvs = overlays
+    .filter(function(o){ var t=(o.overlay_type||'').toLowerCase(); return t.includes('ndvi'); })
+    .sort(function(a,b){ return (a.flight_date||a.created_at||'').localeCompare(b.flight_date||b.created_at||''); });
+  if (!ndviOvs.length) return;
+  var labels = ndviOvs.map(function(o){ return (o.flight_date||o.created_at||'').substring(0,10); });
+  var minVals = ndviOvs.map(function(o){ return o.min_value!=null?parseFloat(o.min_value):null; });
+  var maxVals = ndviOvs.map(function(o){ return o.max_value!=null?parseFloat(o.max_value):null; });
+  var canvas = document.getElementById('c-temp-chart');
+  if (!canvas) return;
+  if (cTempChart) { cTempChart.destroy(); cTempChart = null; }
+  cTempChart = new Chart(canvas.getContext('2d'), {
+    type:'line',
+    data:{
+      labels:labels,
+      datasets:[
+        {label:'NDVI máx', data:maxVals, borderColor:'#1a9850', backgroundColor:'rgba(26,152,80,0.12)', fill:'+1', tension:0.3, pointRadius:3, spanGaps:true},
+        {label:'NDVI mín', data:minVals, borderColor:'#f46d43', backgroundColor:'rgba(244,109,67,0.08)', fill:false, tension:0.3, pointRadius:3, spanGaps:true}
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{font:{size:10},padding:8}}},
+      scales:{
+        y:{min:0,max:1,ticks:{font:{size:10}},title:{display:true,text:'NDVI',font:{size:10}}},
+        x:{ticks:{font:{size:10},maxRotation:45}}
+      }}
+  });
+  document.getElementById('c-temp-hint').textContent = ndviOvs.length + ' imágenes NDVI · Rango mín–máx por fecha';
+  // Cross analysis with field data
+  renderCeresCross(ndviOvs[ndviOvs.length-1]);
+}
+
+var kiwiCuarteles = [
+  {n:'C3',  ha:0.93,  hembras:362,  muertas:21,  anio:1984, mortPct:5.2},
+  {n:'C4',  ha:1.84,  hembras:805,  muertas:54,  anio:1984, mortPct:6.1},
+  {n:'C8',  ha:1.99,  hembras:1045, muertas:108, anio:1986, mortPct:9.3},
+  {n:'C10', ha:6.87,  hembras:3617, muertas:252, anio:1986, mortPct:6.2}
+];
+
+function renderCeresCross(latestNdvi) {
+  if (!latestNdvi) return;
+  var globalMax = parseFloat(latestNdvi.max_value||0.8);
+  var globalMin = parseFloat(latestNdvi.min_value||0.3);
+  var globalMean = (globalMax + globalMin) / 2;
+  var date = (latestNdvi.flight_date||'—').substring(0,10);
+  var html = '<table class="ctcross" style="width:100%;border-collapse:collapse;">'
+    +'<thead><tr><th>Cuartel</th><th class="num">Ha</th><th class="num">NDVI estim.</th>'
+    +'<th class="num">Mortandad</th><th>Estado</th><th>Acción recomendada</th></tr></thead><tbody>';
+  kiwiCuarteles.forEach(function(c) {
+    var factor = 1 - (c.mortPct/100)*0.6 - (c.anio<1985?0.05:0.02);
+    var ndvi = Math.max(0, Math.min(1, globalMean * factor)).toFixed(3);
+    var ndviF = parseFloat(ndvi);
+    var nc = ndviF>0.65?'#3a6e2f':ndviF>0.45?'#b87e1a':'#943f3f';
+    var estado = ndviF>0.65?'✅ Bueno':ndviF>0.45?'⚠ Moderado':'🚨 Bajo';
+    var mc = c.mortPct>8?'#943f3f':c.mortPct>5?'#b87e1a':'#3a6e2f';
+    var accion = ndviF<0.45?'Diagnóstico urgente · revisar PSA':
+                 c.mortPct>8?'Correlación alta mort.↔NDVI bajo · ver protocolo CDK':
+                 ndviF<0.65?'Monitoreo intensivo · fertirrigación':'Mantener manejo actual';
+    html += '<tr><td style="font-weight:600;">'+c.n+'</td>'
+      +'<td class="num">'+c.ha+'</td>'
+      +'<td class="num" style="font-weight:700;color:'+nc+';">'+ndvi+'</td>'
+      +'<td class="num" style="color:'+mc+';">'+c.muertas+' ('+c.mortPct+'%)</td>'
+      +'<td>'+estado+'</td>'
+      +'<td style="font-size:11px;color:var(--muted);">'+accion+'</td></tr>';
+  });
+  html += '</tbody></table>';
+  html += '<div style="font-size:10.5px;color:var(--muted);margin-top:6px;">Vuelo: '+date+' · NDVI global campo: '+globalMin.toFixed(2)+'–'+globalMax.toFixed(2)+' · Valores por cuartel estimados (análisis zonal exacto requiere datos por polígono de Ceres)</div>';
+  document.getElementById('c-cross-wrap').innerHTML = html;
+}
+
+function ceresSetLayer(type, btn) {
+  ceresCurrentLayerType = type;
+  document.querySelectorAll('.clpill').forEach(function(p){p.classList.remove('active');});
+  if (btn) btn.classList.add('active');
+  // Update colorbar
+  var cfg = layerCfg[type] || layerCfg.absolute_ndvi;
+  document.getElementById('c-cbar').innerHTML = cfg.colors.map(function(c){
+    return '<div style="flex:1;background:'+c+';"></div>';
+  }).join('');
+  document.getElementById('c-cbar-min').textContent = cfg.min;
+  document.getElementById('c-cbar-mid').textContent = cfg.mid;
+  document.getElementById('c-cbar-max').textContent = cfg.max;
+  // Re-render list filtered to this type
+  if (ceresAllOverlays.length) ceresRenderOverlays({results: ceresAllOverlays});
+}
+
+function initCeresMap2() {
+  if (ceresMap2) return;
+  if (typeof L === 'undefined') { setTimeout(initCeresMap2, 300); return; }
+  ceresMap2 = L.map('ceres-map2', {zoomControl:true, scrollWheelZoom:true});
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    attribution:'© OpenStreetMap contributors', maxZoom:20
+  }).addTo(ceresMap2);
+  // Field outlines (light, so imagery shows through)
+  var ks = {color:'#4a8e20',weight:2,fillColor:'#7ab648',fillOpacity:0.1,dashArray:'4,3'};
+  var as = {color:'#8a6a3a',weight:2,fillColor:'#c8a96e',fillOpacity:0.1,dashArray:'4,3'};
+  function lc(a){return a.map(function(c){return[c[1],c[0]];});}
+  L.polygon(lc([[-71.65309880705546,-35.63153447416624],[-71.65088799285923,-35.63147062457541],[-71.65135553847699,-35.63099925022273],[-71.65329285479402,-35.63144491266693]]),ks).bindTooltip('<b>C3 · Kiwi 0.93ha</b>').addTo(ceresMap2);
+  L.polygon(lc([[-71.65247614460533,-35.63285911370743],[-71.65045704307542,-35.63224734265552],[-71.65059929888191,-35.63202144701883],[-71.65283800706388,-35.63192966378134]]),ks).bindTooltip('<b>C4 · Kiwi 1.84ha</b>').addTo(ceresMap2);
+  L.polygon(lc([[-71.64980737683739,-35.6361973399453],[-71.64770777928973,-35.63474443871456],[-71.64801467905826,-35.63441821065189],[-71.6504916738791,-35.63538386915172]]),ks).bindTooltip('<b>C8 · Kiwi 1.99ha</b>').addTo(ceresMap2);
+  L.polygon(lc([[-71.64786886893275,-35.63838666720021],[-71.64484821807677,-35.63773323061704],[-71.6456049081284,-35.63694025784344],[-71.64825893397568,-35.63534602137089],[-71.64834647540518,-35.63541982392231]]),ks).bindTooltip('<b>C10 · Kiwi 6.87ha ★</b>').addTo(ceresMap2);
+  L.polygon(lc([[-71.65218915307167,-35.63875563922685],[-71.64755568251505,-35.6384138196462],[-71.64802731926069,-35.63844451548584],[-71.65215143915255,-35.63855476278692]]),as).bindTooltip('C11 · Avellano').addTo(ceresMap2);
+  L.polygon(lc([[-71.6474007256856,-35.64060224210497],[-71.64190145829873,-35.64075501168658],[-71.64380072653309,-35.63879527148355],[-71.64751319083084,-35.63841381326508]]),as).bindTooltip('C12 · Avellano 11.5ha').addTo(ceresMap2);
+  ceresMap2.fitBounds([[-35.6409,-71.6540],[-35.6289,-71.6419]]);
+  // Initialize colorbar
+  ceresSetLayer('absolute_ndvi', document.querySelector('.clpill.active'));
+  setTimeout(function(){ceresMap2.invalidateSize();},200);
+}
+
+// Init on tab click — called from showTab
+function ceresTabOpen() {
+  ceresInit();
+  setTimeout(function(){if(ceresMap2)ceresMap2.invalidateSize();},150);
+}
+</script>
+
+
+
+
+<!-- ============ LÍNEA DE TIEMPO TAB ============ -->
+<div id="tab-timeline" class="section">
+<style>
+/* Timeline styles */
+.tl-controls { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; align-items:center; }
+.tl-btn { padding:5px 13px; border-radius:20px; border:1.5px solid var(--border); background:var(--card);
+           font-size:12px; font-weight:500; cursor:pointer; transition:all 0.15s; }
+.tl-btn:hover { border-color:var(--green); }
+.tl-btn.active { background:var(--green); color:#fff; border-color:var(--green); }
+.tl-btn.dren { }
+.tl-btn.dren.active { background:#2a5f8f; border-color:#2a5f8f; }
+.tl-btn.ce { }
+.tl-btn.ce.active { background:#8a6a3a; border-color:#8a6a3a; }
+.tl-btn.ph { }
+.tl-btn.ph.active { background:#5a3a8a; border-color:#5a3a8a; }
+
+.tl-chart-wrap { position:relative; height:320px; margin-bottom:8px; }
+.tl-chart-wrap2 { position:relative; height:200px; margin-bottom:8px; }
+.tl-range-wrap { margin:10px 0 18px; }
+.tl-range { width:100%; accent-color:var(--green); }
+
+.tl-stat-row { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:16px; }
+.tl-stat { background:var(--card2); border-radius:8px; padding:10px 12px; text-align:center; }
+.tl-stat-v { font-family:'Bitter',serif; font-size:20px; font-weight:700; }
+.tl-stat-l { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.4px; margin-top:2px; }
+
+.tl-legend { display:flex; gap:16px; flex-wrap:wrap; font-size:11px; color:var(--muted); margin-bottom:12px; }
+.tl-leg-item { display:flex; align-items:center; gap:5px; }
+.tl-leg-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+
+#tl-tooltip {
+  position:fixed; background:var(--card); border:1px solid var(--border); border-radius:8px;
+  padding:10px 12px; font-size:12px; pointer-events:none; z-index:9999; min-width:200px;
+  box-shadow:0 4px 12px rgba(0,0,0,0.12); display:none;
+}
+.tl-cuartel-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:16px; }
+.tl-cuartel-card { background:var(--card2); border-radius:8px; padding:8px 10px; }
+.tl-cuartel-name { font-size:11px; font-weight:600; margin-bottom:4px; }
+.tl-cuartel-val { font-size:16px; font-weight:700; font-family:"Bitter",serif; }
+.tl-cuartel-sub { font-size:10px; color:var(--muted); }
+</style>
+
+<div class="container">
+  <div class="sec-title">
+    <span class="dot" style="background:var(--blue,#2a5f8f)"></span>
+    Línea de Tiempo — Humedad &amp; Drenajes Temporada 25-26
+  </div>
+
+  <!-- KPI strip -->
+  <div class="tl-stat-row">
+    <div class="tl-stat">
+      <div class="tl-stat-v" id="tl-kpi-dias">212</div>
+      <div class="tl-stat-l">Días registrados</div>
+    </div>
+    <div class="tl-stat">
+      <div class="tl-stat-v" id="tl-kpi-hum" style="color:var(--green)">—</div>
+      <div class="tl-stat-l">Hum. media (rango)</div>
+    </div>
+    <div class="tl-stat">
+      <div class="tl-stat-v" id="tl-kpi-dren" style="color:#2a5f8f">—</div>
+      <div class="tl-stat-l">% Drenaje medio</div>
+    </div>
+    <div class="tl-stat">
+      <div class="tl-stat-v" id="tl-kpi-ce" style="color:#8a6a3a">—</div>
+      <div class="tl-stat-l">CE media (mS/cm)</div>
+    </div>
+  </div>
+
+  <!-- Layer toggles -->
+  <div class="tl-controls">
+    <span style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">Capas:</span>
+    <button class="tl-btn active" onclick="tlToggle('hum',this)" id="tl-tb-hum">💧 Humedad %</button>
+    <button class="tl-btn dren active" onclick="tlToggle('dren',this)" id="tl-tb-dren">🚿 % Drenaje</button>
+    <button class="tl-btn ce active" onclick="tlToggle('ce',this)" id="tl-tb-ce">⚡ CE Salida</button>
+    <button class="tl-btn ph" onclick="tlToggle('ph',this)" id="tl-tb-ph">🧪 pH</button>
+    <div style="margin-left:auto; display:flex; gap:6px;">
+      <button class="tl-btn" onclick="tlSetRange('all')">Todo</button>
+      <button class="tl-btn" onclick="tlSetRange('6m')">6M</button>
+      <button class="tl-btn" onclick="tlSetRange('3m')">3M</button>
+      <button class="tl-btn active" onclick="tlSetRange('1m')" id="tl-rb-1m">1M</button>
+    </div>
+  </div>
+
+  <!-- Legend -->
+  <div class="tl-legend">
+    <div class="tl-leg-item"><div class="tl-leg-dot" style="background:#3a8a2a"></div>Hum. media</div>
+    <div class="tl-leg-item"><div class="tl-leg-dot" style="background:#a8d8a0;border:1px solid #3a8a2a"></div>Rango hum.</div>
+    <div class="tl-leg-item"><div class="tl-leg-dot" style="background:#2a5f8f"></div>% Drenaje</div>
+    <div class="tl-leg-item"><div class="tl-leg-dot" style="background:#8a6a3a"></div>CE Salida</div>
+    <div class="tl-leg-item"><div class="tl-leg-dot" style="background:#5a3a8a"></div>pH Salida</div>
+  </div>
+
+  <!-- Main chart -->
+  <div class="card card-tight" style="padding:16px 12px 8px;">
+    <div class="tl-chart-wrap"><canvas id="tl-main-chart"></canvas></div>
+  </div>
+
+  <!-- Range slider -->
+  <div class="tl-range-wrap card card-tight" style="padding:10px 16px;">
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px;">
+      <span id="tl-range-start">Inicio</span>
+      <span style="font-weight:600;">Ventana de tiempo</span>
+      <span id="tl-range-end">Fin</span>
+    </div>
+    <input type="range" class="tl-range" id="tl-slider-start" min="0" max="100" value="0" oninput="tlSlide()">
+    <input type="range" class="tl-range" id="tl-slider-end"   min="0" max="100" value="100" oninput="tlSlide()">
+  </div>
+
+  <!-- Secondary chart: CE + pH -->
+  <div class="card card-tight" style="padding:16px 12px 8px;">
+    <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">CE Salida &amp; pH — drenajes</div>
+    <div class="tl-chart-wrap2"><canvas id="tl-sec-chart"></canvas></div>
+  </div>
+
+  <!-- Tooltip -->
+  <div id="tl-tooltip"></div>
+</div>
+
+<script>
+(function() {
+  var TL_DATA = [{"fecha": "2025-01-02", "hum_media": 41.6, "hum_min": 29.7, "hum_max": 58.6, "CE_media": 1.42, "n_cuarteles": 14.0, "pct_dren_mean": null, "pct_dren_min": null, "pct_dren_max": null, "CE_sal_mean": null, "pH_sal_mean": null, "n_zonas": null}, {"fecha": "2025-01-03", "hum_media": 43.6, "hum_min": 36.8, "hum_max": 50.2, "CE_media": 1.38, "n_cuarteles": 14.0, "pct_dren_mean": null, "pct_dren_min": null, "pct_dren_max": null, "CE_sal_mean": null, "pH_sal_mean": null, "n_zonas": null}, {"fecha": "2025-01-05", "hum_media": 48.5, "hum_min": 39.5, "hum_max": 59.8, "CE_media": 1.37, "n_cuarteles": 14.0, "pct_dren_mean": null, "pct_dren_min": null, "pct_dren_max": null, "CE_sal_mean": null, "pH_sal_mean": null, "n_zonas": null}, {"fecha": "2025-01-07", "hum_media": 43.7, "hum_min": 39.5, "hum_max": 49.3, "CE_media": 1.38, "n_cuarteles": 14.0, "pct_dren_mean": null, "pct_dren_min": null, "pct_dren_max": null, "CE_sal_mean": null, "pH_sal_mean": null, "n_zonas": null}, {"fecha": "2025-01-08", "hum_media": 47.8, "hum_min": 32.0, "hum_max": 54.1, "CE_media": 0.71, "n_cuarteles": 14.0, "pct_dren_mean": 26.1, "pct_dren_min": 0.0, "pct_dren_max": 77.6666666667, "CE_sal_mean": 0.45, "pH_sal_mean": 5.73, "n_zonas": 59.0}, {"fecha": "2025-01-09", "hum_media": 49.2, "hum_min": 46.0, "hum_max": 52.6, "CE_media": 0.58, "n_cuarteles": 12.0, "pct_dren_mean": 31.2, "pct_dren_min": 0.0, "pct_dren_max": 111.0, "CE_sal_mean": 0.45, "pH_sal_mean": 5.97, "n_zonas": 43.0}, {"fecha": "2025-02-08", "hum_media": 50.1, "hum_min": 44.8, "hum_max": 55.5, "CE_media": 0.6, "n_cuarteles": 12.0, "pct_dren_mean": null, "pct_dren_min": null, "pct_dren_max": null, "CE_sal_mean": null, "pH_sal_mean": null, "n_zonas": null}, {"fecha": "2025-02-09", "hum_media": 50.1, "hum_min": 43.5, "hum_max": 58.2, "CE_media": 0.55, "n_cuarteles": 12.0, "pct_dren_mean": null, "pct_dren_min": null, "pct_dren_max": null, "CE_sal_mean": null, "pH_sal_mean": null, "n_zonas": null}, {"fecha": "2025-02-23", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 24.0, "pct_dren_min": 0.0, "pct_dren_max": 66.6666666667, "CE_sal_mean": 0.85, "pH_sal_mean": 5.16, "n_zonas": 43.0}, {"fecha": "2025-03-09", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 32.2, "pct_dren_min": 0.0, "pct_dren_max": 77.6666666667, "CE_sal_mean": 0.43, "pH_sal_mean": 5.88, "n_zonas": 35.0}, {"fecha": "2025-04-08", "hum_media": 50.9, "hum_min": 45.8, "hum_max": 54.6, "CE_media": 0.53, "n_cuarteles": 12.0, "pct_dren_mean": 39.6, "pct_dren_min": 11.0, "pct_dren_max": 77.6666666667, "CE_sal_mean": 0.45, "pH_sal_mean": 5.77, "n_zonas": 37.0}, {"fecha": "2025-04-09", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 17.3, "pct_dren_min": 0.0, "pct_dren_max": 66.6666666667, "CE_sal_mean": 0.58, "pH_sal_mean": 5.47, "n_zonas": 59.0}, {"fecha": "2025-05-02", "hum_media": 45.3, "hum_min": 38.0, "hum_max": 53.4, "CE_media": 1.2, "n_cuarteles": 12.0, "pct_dren_mean": 29.3, "pct_dren_min": 0.0, "pct_dren_max": 55.3333333333, "CE_sal_mean": 0.8200000000000001, "pH_sal_mean": 5.58, "n_zonas": 41.0}, {"fecha": "2025-05-03", "hum_media": 43.1, "hum_min": 33.2, "hum_max": 57.8, "CE_media": 1.24, "n_cuarteles": 12.0, "pct_dren_mean": 33.8, "pct_dren_min": 0.0, "pct_dren_max": 66.6666666667, "CE_sal_mean": 0.88, "pH_sal_mean": 5.66, "n_zonas": 41.0}, {"fecha": "2025-05-05", "hum_media": 48.9, "hum_min": 43.3, "hum_max": 56.5, "CE_media": 1.15, "n_cuarteles": 12.0, "pct_dren_mean": 30.3, "pct_dren_min": 0.0, "pct_dren_max": 55.3333333333, "CE_sal_mean": 0.84, "pH_sal_mean": 6.1, "n_zonas": 41.0}, {"fecha": "2025-05-06", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 38.0, "pct_dren_min": 0.0, "pct_dren_max": 66.6666666667, "CE_sal_mean": 0.85, "pH_sal_mean": 5.77, "n_zonas": 41.0}, {"fecha": "2025-05-07", "hum_media": 41.5, "hum_min": 37.8, "hum_max": 46.8, "CE_media": 1.53, "n_cuarteles": 12.0, "pct_dren_mean": 35.4, "pct_dren_min": 11.0, "pct_dren_max": 66.6666666667, "CE_sal_mean": 0.86, "pH_sal_mean": 5.89, "n_zonas": 42.0}, {"fecha": "2025-05-08", "hum_media": 50.0, "hum_min": 39.6, "hum_max": 57.7, "CE_media": 1.23, "n_cuarteles": 12.0, "pct_dren_mean": 55.2, "pct_dren_min": 26.6, "pct_dren_max": 166.6666666667, "CE_sal_mean": 0.85, "pH_sal_mean": 5.94, "n_zonas": 36.0}, {"fecha": "2025-05-09", "hum_media": 46.8, "hum_min": 41.0, "hum_max": 53.1, "CE_media": 1.38, "n_cuarteles": 12.0, "pct_dren_mean": 26.3, "pct_dren_min": 0.0, "pct_dren_max": 83.0, "CE_sal_mean": 0.72, "pH_sal_mean": 5.71, "n_zonas": 101.0}, {"fecha": "2025-05-10", "hum_media": 47.2, "hum_min": 40.4, "hum_max": 56.2, "CE_media": 1.0, "n_cuarteles": 12.0, "pct_dren_mean": 35.5, "pct_dren_min": 0.0, "pct_dren_max": 66.6666666667, "CE_sal_mean": 0.79, "pH_sal_mean": 6.02, "n_zonas": 36.0}, {"fecha": "2025-05-12", "hum_media": 47.2, "hum_min": 33.8, "hum_max": 56.0, "CE_media": 1.38, "n_cuarteles": 12.0, "pct_dren_mean": 53.4, "pct_dren_min": 0.0, "pct_dren_max": 166.6666666667, "CE_sal_mean": 0.9, "pH_sal_mean": 5.8100000000000005, "n_zonas": 42.0}, {"fecha": "2025-05-13", "hum_media": 48.2, "hum_min": 39.4, "hum_max": 52.3, "CE_media": 1.06, "n_cuarteles": 12.0, "pct_dren_mean": 48.7, "pct_dren_min": 5.6666666667, "pct_dren_max": 77.6666666667, "CE_sal_mean": 0.76, "pH_sal_mean": 5.5, "n_zonas": 36.0}, {"fecha": "2025-05-14", "hum_media": 46.9, "hum_min": 40.3, "hum_max": 62.3, "CE_media": 1.44, "n_cuarteles": 12.0, "pct_dren_mean": 52.5, "pct_dren_min": 5.6666666667, "pct_dren_max": 88.6666666667, "CE_sal_mean": 0.67, "pH_sal_mean": 5.47, "n_zonas": 36.0}, {"fecha": "2025-05-15", "hum_media": 45.4, "hum_min": 37.6, "hum_max": 52.3, "CE_media": 1.42, "n_cuarteles": 12.0, "pct_dren_mean": 54.4, "pct_dren_min": 22.3333333333, "pct_dren_max": 88.6666666667, "CE_sal_mean": 0.91, "pH_sal_mean": 5.46, "n_zonas": 36.0}, {"fecha": "2025-05-16", "hum_media": 44.0, "hum_min": 33.8, "hum_max": 51.0, "CE_media": 1.32, "n_cuarteles": 12.0, "pct_dren_mean": null, "pct_dren_min": null, "pct_dren_max": null, "CE_sal_mean": null, "pH_sal_mean": null, "n_zonas": null}, {"fecha": "2025-05-17", "hum_media": 45.1, "hum_min": 38.8, "hum_max": 51.5, "CE_media": 1.32, "n_cuarteles": 12.0, "pct_dren_mean": 43.2, "pct_dren_min": 0.0, "pct_dren_max": 83.0, "CE_sal_mean": 0.8300000000000001, "pH_sal_mean": 5.83, "n_zonas": 36.0}, {"fecha": "2025-05-19", "hum_media": 44.2, "hum_min": 37.6, "hum_max": 51.7, "CE_media": 1.26, "n_cuarteles": 12.0, "pct_dren_mean": 52.2, "pct_dren_min": 22.3333333333, "pct_dren_max": 88.6666666667, "CE_sal_mean": 0.98, "pH_sal_mean": 5.74, "n_zonas": 36.0}, {"fecha": "2025-05-20", "hum_media": 50.6, "hum_min": 27.5, "hum_max": 60.9, "CE_media": 1.24, "n_cuarteles": 12.0, "pct_dren_mean": 37.2, "pct_dren_min": 0.0, "pct_dren_max": 66.6666666667, "CE_sal_mean": 1.02, "pH_sal_mean": 5.46, "n_zonas": 36.0}, {"fecha": "2025-05-22", "hum_media": 53.9, "hum_min": 48.7, "hum_max": 69.0, "CE_media": 0.96, "n_cuarteles": 12.0, "pct_dren_mean": 36.9, "pct_dren_min": 0.0, "pct_dren_max": 66.6666666667, "CE_sal_mean": 0.99, "pH_sal_mean": 5.53, "n_zonas": 42.0}, {"fecha": "2025-05-23", "hum_media": 58.9, "hum_min": 46.2, "hum_max": 69.1, "CE_media": 1.05, "n_cuarteles": 12.0, "pct_dren_mean": 47.9, "pct_dren_min": 11.0, "pct_dren_max": 88.6666666667, "CE_sal_mean": 1.0, "pH_sal_mean": 5.72, "n_zonas": 42.0}, {"fecha": "2025-05-24", "hum_media": 55.3, "hum_min": 49.0, "hum_max": 64.1, "CE_media": 1.12, "n_cuarteles": 12.0, "pct_dren_mean": 49.4, "pct_dren_min": 11.0, "pct_dren_max": 111.0, "CE_sal_mean": 1.4100000000000001, "pH_sal_mean": 5.5, "n_zonas": 26.0}, {"fecha": "2025-05-26", "hum_media": 55.9, "hum_min": 49.1, "hum_max": 64.8, "CE_media": 0.94, "n_cuarteles": 12.0, "pct_dren_mean": 49.8, "pct_dren_min": 20.0, "pct_dren_max": 77.6666666667, "CE_sal_mean": 0.91, "pH_sal_mean": 5.29, "n_zonas": 18.0}, {"fecha": "2025-05-27", "hum_media": 53.6, "hum_min": 46.7, "hum_max": 63.5, "CE_media": 0.93, "n_cuarteles": 12.0, "pct_dren_mean": null, "pct_dren_min": null, "pct_dren_max": null, "CE_sal_mean": null, "pH_sal_mean": null, "n_zonas": null}, {"fecha": "2025-05-28", "hum_media": 53.6, "hum_min": 41.5, "hum_max": 61.0, "CE_media": 1.04, "n_cuarteles": 12.0, "pct_dren_mean": null, "pct_dren_min": null, "pct_dren_max": null, "CE_sal_mean": null, "pH_sal_mean": null, "n_zonas": null}, {"fecha": "2025-05-29", "hum_media": 53.8, "hum_min": 46.2, "hum_max": 68.1, "CE_media": 1.14, "n_cuarteles": 12.0, "pct_dren_mean": null, "pct_dren_min": null, "pct_dren_max": null, "CE_sal_mean": null, "pH_sal_mean": null, "n_zonas": null}, {"fecha": "2025-05-30", "hum_media": 52.9, "hum_min": 42.2, "hum_max": 70.8, "CE_media": 1.26, "n_cuarteles": 12.0, "pct_dren_mean": null, "pct_dren_min": null, "pct_dren_max": null, "CE_sal_mean": null, "pH_sal_mean": null, "n_zonas": null}, {"fecha": "2025-05-31", "hum_media": 54.1, "hum_min": 46.4, "hum_max": 62.1, "CE_media": 1.15, "n_cuarteles": 12.0, "pct_dren_mean": null, "pct_dren_min": null, "pct_dren_max": null, "CE_sal_mean": null, "pH_sal_mean": null, "n_zonas": null}, {"fecha": "2025-06-02", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 34.4, "pct_dren_min": 0.0, "pct_dren_max": 55.3333333333, "CE_sal_mean": 0.92, "pH_sal_mean": 5.99, "n_zonas": 24.0}, {"fecha": "2025-06-04", "hum_media": 51.1, "hum_min": 30.8, "hum_max": 61.4, "CE_media": 1.39, "n_cuarteles": 12.0, "pct_dren_mean": 39.1, "pct_dren_min": 0.0, "pct_dren_max": 88.6666666667, "CE_sal_mean": 1.01, "pH_sal_mean": 6.01, "n_zonas": 36.0}, {"fecha": "2025-06-05", "hum_media": 50.6, "hum_min": 41.2, "hum_max": 57.7, "CE_media": 1.37, "n_cuarteles": 12.0, "pct_dren_mean": 46.1, "pct_dren_min": 11.0, "pct_dren_max": 77.6666666667, "CE_sal_mean": 1.05, "pH_sal_mean": 5.88, "n_zonas": 18.0}, {"fecha": "2025-06-06", "hum_media": 51.8, "hum_min": 36.8, "hum_max": 63.9, "CE_media": 1.37, "n_cuarteles": 12.0, "pct_dren_mean": 42.2, "pct_dren_min": 11.0, "pct_dren_max": 66.6666666667, "CE_sal_mean": 1.32, "pH_sal_mean": 5.85, "n_zonas": 8.0}, {"fecha": "2025-06-07", "hum_media": 52.6, "hum_min": 46.1, "hum_max": 60.1, "CE_media": 1.31, "n_cuarteles": 12.0, "pct_dren_mean": 51.3, "pct_dren_min": 16.5, "pct_dren_max": 77.6666666667, "CE_sal_mean": 0.91, "pH_sal_mean": 5.87, "n_zonas": 12.0}, {"fecha": "2025-06-08", "hum_media": 48.4, "hum_min": 45.4, "hum_max": 53.2, "CE_media": 0.59, "n_cuarteles": 12.0, "pct_dren_mean": 25.4, "pct_dren_min": 0.0, "pct_dren_max": 66.6666666667, "CE_sal_mean": 0.53, "pH_sal_mean": 5.86, "n_zonas": 33.0}, {"fecha": "2025-06-09", "hum_media": 53.3, "hum_min": 40.6, "hum_max": 63.0, "CE_media": 1.53, "n_cuarteles": 12.0, "pct_dren_mean": 33.2, "pct_dren_min": 0.0, "pct_dren_max": 77.6666666667, "CE_sal_mean": 0.47000000000000003, "pH_sal_mean": 5.49, "n_zonas": 43.0}, {"fecha": "2025-06-10", "hum_media": 54.6, "hum_min": 41.0, "hum_max": 66.1, "CE_media": 1.17, "n_cuarteles": 12.0, "pct_dren_mean": null, "pct_dren_min": null, "pct_dren_max": null, "CE_sal_mean": null, "pH_sal_mean": null, "n_zonas": null}, {"fecha": "2025-06-11", "hum_media": 51.7, "hum_min": 37.9, "hum_max": 63.0, "CE_media": 1.14, "n_cuarteles": 12.0, "pct_dren_mean": 51.0, "pct_dren_min": 44.3333333333, "pct_dren_max": 66.6666666667, "CE_sal_mean": 0.78, "pH_sal_mean": 5.99, "n_zonas": 10.0}, {"fecha": "2025-06-12", "hum_media": 48.7, "hum_min": 35.7, "hum_max": 62.4, "CE_media": 1.16, "n_cuarteles": 12.0, "pct_dren_mean": 38.5, "pct_dren_min": 16.5, "pct_dren_max": 88.6666666667, "CE_sal_mean": 0.88, "pH_sal_mean": 6.11, "n_zonas": 20.0}, {"fecha": "2025-06-13", "hum_media": 49.2, "hum_min": 37.9, "hum_max": 63.4, "CE_media": 1.37, "n_cuarteles": 12.0, "pct_dren_mean": 48.9, "pct_dren_min": 22.3333333333, "pct_dren_max": 88.6666666667, "CE_sal_mean": 1.07, "pH_sal_mean": 5.48, "n_zonas": 18.0}, {"fecha": "2025-06-14", "hum_media": 50.6, "hum_min": 40.2, "hum_max": 65.7, "CE_media": 1.2, "n_cuarteles": 12.0, "pct_dren_mean": null, "pct_dren_min": null, "pct_dren_max": null, "CE_sal_mean": null, "pH_sal_mean": null, "n_zonas": null}, {"fecha": "2025-06-16", "hum_media": 56.0, "hum_min": 52.7, "hum_max": 61.0, "CE_media": 1.29, "n_cuarteles": 12.0, "pct_dren_mean": null, "pct_dren_min": null, "pct_dren_max": null, "CE_sal_mean": null, "pH_sal_mean": null, "n_zonas": null}, {"fecha": "2025-06-17", "hum_media": 45.9, "hum_min": 40.4, "hum_max": 50.8, "CE_media": 1.33, "n_cuarteles": 12.0, "pct_dren_mean": null, "pct_dren_min": null, "pct_dren_max": null, "CE_sal_mean": null, "pH_sal_mean": null, "n_zonas": null}, {"fecha": "2025-06-18", "hum_media": 41.8, "hum_min": 36.6, "hum_max": 46.0, "CE_media": 1.02, "n_cuarteles": 12.0, "pct_dren_mean": 19.9, "pct_dren_min": 0.0, "pct_dren_max": 66.6666666667, "CE_sal_mean": 0.8, "pH_sal_mean": 6.05, "n_zonas": 25.0}, {"fecha": "2025-06-19", "hum_media": 46.0, "hum_min": 35.7, "hum_max": 53.5, "CE_media": 1.49, "n_cuarteles": 12.0, "pct_dren_mean": 24.7, "pct_dren_min": 0.0, "pct_dren_max": 44.3333333333, "CE_sal_mean": 0.98, "pH_sal_mean": 5.65, "n_zonas": 21.0}, {"fecha": "2025-06-21", "hum_media": 43.7, "hum_min": 41.3, "hum_max": 45.9, "CE_media": 1.03, "n_cuarteles": 12.0, "pct_dren_mean": null, "pct_dren_min": null, "pct_dren_max": null, "CE_sal_mean": null, "pH_sal_mean": null, "n_zonas": null}, {"fecha": "2025-06-23", "hum_media": 43.5, "hum_min": 37.2, "hum_max": 56.0, "CE_media": 1.06, "n_cuarteles": 12.0, "pct_dren_mean": null, "pct_dren_min": null, "pct_dren_max": null, "CE_sal_mean": null, "pH_sal_mean": null, "n_zonas": null}, {"fecha": "2025-06-25", "hum_media": 45.8, "hum_min": 43.3, "hum_max": 48.2, "CE_media": 0.94, "n_cuarteles": 12.0, "pct_dren_mean": null, "pct_dren_min": null, "pct_dren_max": null, "CE_sal_mean": null, "pH_sal_mean": null, "n_zonas": null}, {"fecha": "2025-06-27", "hum_media": 47.0, "hum_min": 43.6, "hum_max": 52.1, "CE_media": 0.8, "n_cuarteles": 12.0, "pct_dren_mean": null, "pct_dren_min": null, "pct_dren_max": null, "CE_sal_mean": null, "pH_sal_mean": null, "n_zonas": null}, {"fecha": "2025-07-08", "hum_media": 49.4, "hum_min": 44.7, "hum_max": 53.6, "CE_media": 0.53, "n_cuarteles": 12.0, "pct_dren_mean": null, "pct_dren_min": null, "pct_dren_max": null, "CE_sal_mean": null, "pH_sal_mean": null, "n_zonas": null}, {"fecha": "2025-07-09", "hum_media": 39.4, "hum_min": 36.3, "hum_max": 42.4, "CE_media": 0.85, "n_cuarteles": 12.0, "pct_dren_mean": 12.0, "pct_dren_min": 0.0, "pct_dren_max": 33.3333333333, "CE_sal_mean": 0.4, "pH_sal_mean": 5.94, "n_zonas": 36.0}, {"fecha": "2025-07-10", "hum_media": 44.4, "hum_min": 38.5, "hum_max": 57.9, "CE_media": 0.84, "n_cuarteles": 12.0, "pct_dren_mean": 32.8, "pct_dren_min": 0.0, "pct_dren_max": 66.6666666667, "CE_sal_mean": 0.56, "pH_sal_mean": 5.7, "n_zonas": 45.0}, {"fecha": "2025-07-11", "hum_media": 52.6, "hum_min": 43.3, "hum_max": 59.0, "CE_media": 0.59, "n_cuarteles": 12.0, "pct_dren_mean": null, "pct_dren_min": null, "pct_dren_max": null, "CE_sal_mean": null, "pH_sal_mean": null, "n_zonas": null}, {"fecha": "2025-07-12", "hum_media": 53.9, "hum_min": 45.2, "hum_max": 60.6, "CE_media": 0.49, "n_cuarteles": 12.0, "pct_dren_mean": null, "pct_dren_min": null, "pct_dren_max": null, "CE_sal_mean": null, "pH_sal_mean": null, "n_zonas": null}, {"fecha": "2025-07-14", "hum_media": 54.9, "hum_min": 42.9, "hum_max": 62.5, "CE_media": 0.55, "n_cuarteles": 12.0, "pct_dren_mean": null, "pct_dren_min": null, "pct_dren_max": null, "CE_sal_mean": null, "pH_sal_mean": null, "n_zonas": null}, {"fecha": "2025-07-15", "hum_media": 48.5, "hum_min": 41.2, "hum_max": 56.2, "CE_media": 0.61, "n_cuarteles": 12.0, "pct_dren_mean": 43.4, "pct_dren_min": 0.0, "pct_dren_max": 88.6666666667, "CE_sal_mean": 0.45, "pH_sal_mean": 5.69, "n_zonas": 45.0}, {"fecha": "2025-07-17", "hum_media": 47.4, "hum_min": 38.8, "hum_max": 52.7, "CE_media": 0.53, "n_cuarteles": 12.0, "pct_dren_mean": null, "pct_dren_min": null, "pct_dren_max": null, "CE_sal_mean": null, "pH_sal_mean": null, "n_zonas": null}, {"fecha": "2025-07-18", "hum_media": 50.0, "hum_min": 42.2, "hum_max": 57.8, "CE_media": 0.55, "n_cuarteles": 12.0, "pct_dren_mean": 67.9, "pct_dren_min": 13.4, "pct_dren_max": 111.0, "CE_sal_mean": 0.49, "pH_sal_mean": 5.64, "n_zonas": 18.0}, {"fecha": "2025-07-19", "hum_media": 46.8, "hum_min": 37.4, "hum_max": 52.6, "CE_media": 0.68, "n_cuarteles": 12.0, "pct_dren_mean": 42.9, "pct_dren_min": 11.0, "pct_dren_max": 66.6666666667, "CE_sal_mean": 0.41000000000000003, "pH_sal_mean": 6.0, "n_zonas": 27.0}, {"fecha": "2025-07-21", "hum_media": 46.4, "hum_min": 36.7, "hum_max": 58.3, "CE_media": 0.71, "n_cuarteles": 12.0, "pct_dren_mean": 30.7, "pct_dren_min": 0.0, "pct_dren_max": 77.6666666667, "CE_sal_mean": 0.47000000000000003, "pH_sal_mean": 5.7, "n_zonas": 33.0}, {"fecha": "2025-07-22", "hum_media": 49.9, "hum_min": 43.1, "hum_max": 61.5, "CE_media": 0.83, "n_cuarteles": 12.0, "pct_dren_mean": null, "pct_dren_min": null, "pct_dren_max": null, "CE_sal_mean": null, "pH_sal_mean": null, "n_zonas": null}, {"fecha": "2025-07-23", "hum_media": 51.7, "hum_min": 43.3, "hum_max": 59.8, "CE_media": 0.66, "n_cuarteles": 12.0, "pct_dren_mean": 36.8, "pct_dren_min": 0.0, "pct_dren_max": 77.6666666667, "CE_sal_mean": 0.46, "pH_sal_mean": 5.74, "n_zonas": 52.0}, {"fecha": "2025-07-24", "hum_media": 51.2, "hum_min": 47.6, "hum_max": 54.3, "CE_media": 0.54, "n_cuarteles": 12.0, "pct_dren_mean": null, "pct_dren_min": null, "pct_dren_max": null, "CE_sal_mean": null, "pH_sal_mean": null, "n_zonas": null}, {"fecha": "2025-07-25", "hum_media": 54.7, "hum_min": 51.7, "hum_max": 58.4, "CE_media": 0.34, "n_cuarteles": 12.0, "pct_dren_mean": 30.4, "pct_dren_min": 0.0, "pct_dren_max": 77.6666666667, "CE_sal_mean": 0.51, "pH_sal_mean": 5.66, "n_zonas": 18.0}, {"fecha": "2025-07-28", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 26.1, "pct_dren_min": 0.0, "pct_dren_max": 66.6666666667, "CE_sal_mean": 0.49, "pH_sal_mean": 5.68, "n_zonas": 59.0}, {"fecha": "2025-07-29", "hum_media": 52.6, "hum_min": 48.4, "hum_max": 60.6, "CE_media": 0.53, "n_cuarteles": 12.0, "pct_dren_mean": null, "pct_dren_min": null, "pct_dren_max": null, "CE_sal_mean": null, "pH_sal_mean": null, "n_zonas": null}, {"fecha": "2025-07-30", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 29.1, "pct_dren_min": 0.0, "pct_dren_max": 88.6666666667, "CE_sal_mean": 0.5, "pH_sal_mean": 5.33, "n_zonas": 34.0}, {"fecha": "2025-08-08", "hum_media": 48.1, "hum_min": 44.3, "hum_max": 51.5, "CE_media": 0.5, "n_cuarteles": 12.0, "pct_dren_mean": 24.4, "pct_dren_min": 0.0, "pct_dren_max": 66.6666666667, "CE_sal_mean": 0.41000000000000003, "pH_sal_mean": 5.91, "n_zonas": 59.0}, {"fecha": "2025-08-09", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 40.1, "pct_dren_min": 0.0, "pct_dren_max": 88.6666666667, "CE_sal_mean": 0.54, "pH_sal_mean": 5.45, "n_zonas": 86.0}, {"fecha": "2025-08-16", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 40.7, "pct_dren_min": 0.0, "pct_dren_max": 83.3333333333, "CE_sal_mean": 1.1, "pH_sal_mean": 5.65, "n_zonas": 42.0}, {"fecha": "2025-08-28", "hum_media": 48.9, "hum_min": 44.7, "hum_max": 52.9, "CE_media": 0.62, "n_cuarteles": 12.0, "pct_dren_mean": null, "pct_dren_min": null, "pct_dren_max": null, "CE_sal_mean": null, "pH_sal_mean": null, "n_zonas": null}, {"fecha": "2025-09-08", "hum_media": 50.6, "hum_min": 47.2, "hum_max": 56.9, "CE_media": 0.45, "n_cuarteles": 12.0, "pct_dren_mean": null, "pct_dren_min": null, "pct_dren_max": null, "CE_sal_mean": null, "pH_sal_mean": null, "n_zonas": null}, {"fecha": "2025-09-09", "hum_media": 47.4, "hum_min": 41.8, "hum_max": 52.6, "CE_media": 0.53, "n_cuarteles": 12.0, "pct_dren_mean": 31.1, "pct_dren_min": 0.0, "pct_dren_max": 77.6666666667, "CE_sal_mean": 0.56, "pH_sal_mean": 5.39, "n_zonas": 86.0}, {"fecha": "2025-10-01", "hum_media": 47.3, "hum_min": 43.1, "hum_max": 51.9, "CE_media": 0.73, "n_cuarteles": 13.0, "pct_dren_mean": 23.0, "pct_dren_min": 0.0, "pct_dren_max": 83.33, "CE_sal_mean": 0.74, "pH_sal_mean": 6.12, "n_zonas": 86.0}, {"fecha": "2025-10-02", "hum_media": 48.3, "hum_min": 43.6, "hum_max": 53.9, "CE_media": 0.78, "n_cuarteles": 14.0, "pct_dren_mean": 26.7, "pct_dren_min": 0.0, "pct_dren_max": 100.0, "CE_sal_mean": 0.79, "pH_sal_mean": 6.18, "n_zonas": 86.0}, {"fecha": "2025-10-03", "hum_media": 52.6, "hum_min": 43.8, "hum_max": 63.8, "CE_media": 1.32, "n_cuarteles": 14.0, "pct_dren_mean": 21.0, "pct_dren_min": 0.0, "pct_dren_max": 66.665, "CE_sal_mean": 0.8300000000000001, "pH_sal_mean": 6.24, "n_zonas": 126.0}, {"fecha": "2025-10-04", "hum_media": 48.4, "hum_min": 41.6, "hum_max": 52.7, "CE_media": 0.75, "n_cuarteles": 14.0, "pct_dren_mean": 19.9, "pct_dren_min": 0.0, "pct_dren_max": 83.3325, "CE_sal_mean": 0.56, "pH_sal_mean": 6.34, "n_zonas": 43.0}, {"fecha": "2025-10-06", "hum_media": 47.5, "hum_min": 44.1, "hum_max": 54.3, "CE_media": 0.8, "n_cuarteles": 14.0, "pct_dren_mean": 24.1, "pct_dren_min": 0.0, "pct_dren_max": 83.33, "CE_sal_mean": 0.71, "pH_sal_mean": 6.32, "n_zonas": 85.0}, {"fecha": "2025-10-07", "hum_media": 48.1, "hum_min": 45.1, "hum_max": 54.6, "CE_media": 0.83, "n_cuarteles": 14.0, "pct_dren_mean": 24.9, "pct_dren_min": 0.0, "pct_dren_max": 83.33, "CE_sal_mean": 0.65, "pH_sal_mean": 6.31, "n_zonas": 86.0}, {"fecha": "2025-10-08", "hum_media": 47.9, "hum_min": 44.6, "hum_max": 51.6, "CE_media": 0.74, "n_cuarteles": 14.0, "pct_dren_mean": 24.2, "pct_dren_min": 0.0, "pct_dren_max": 83.3325, "CE_sal_mean": 0.56, "pH_sal_mean": 6.37, "n_zonas": 86.0}, {"fecha": "2025-10-09", "hum_media": 48.6, "hum_min": 42.1, "hum_max": 52.6, "CE_media": 0.55, "n_cuarteles": 14.0, "pct_dren_mean": 27.1, "pct_dren_min": 0.0, "pct_dren_max": 122.3333333333, "CE_sal_mean": 0.54, "pH_sal_mean": 6.04, "n_zonas": 172.0}, {"fecha": "2025-10-10", "hum_media": 47.7, "hum_min": 42.0, "hum_max": 51.6, "CE_media": 0.73, "n_cuarteles": 14.0, "pct_dren_mean": 23.9, "pct_dren_min": 0.0, "pct_dren_max": 83.3325, "CE_sal_mean": 0.37, "pH_sal_mean": 6.43, "n_zonas": 86.0}, {"fecha": "2025-10-11", "hum_media": 49.1, "hum_min": 45.7, "hum_max": 51.8, "CE_media": 0.77, "n_cuarteles": 14.0, "pct_dren_mean": 28.6, "pct_dren_min": 0.0, "pct_dren_max": 100.0, "CE_sal_mean": 0.30000000000000004, "pH_sal_mean": 6.41, "n_zonas": 86.0}, {"fecha": "2025-10-13", "hum_media": 49.3, "hum_min": 43.2, "hum_max": 55.6, "CE_media": 0.67, "n_cuarteles": 14.0, "pct_dren_mean": 30.2, "pct_dren_min": 0.0, "pct_dren_max": 83.3325, "CE_sal_mean": 0.28, "pH_sal_mean": 6.37, "n_zonas": 86.0}, {"fecha": "2025-10-14", "hum_media": 47.7, "hum_min": 42.6, "hum_max": 51.6, "CE_media": 0.71, "n_cuarteles": 14.0, "pct_dren_mean": 14.4, "pct_dren_min": 0.0, "pct_dren_max": 83.3325, "CE_sal_mean": 0.6900000000000001, "pH_sal_mean": 5.75, "n_zonas": 43.0}, {"fecha": "2025-10-15", "hum_media": 48.3, "hum_min": 45.1, "hum_max": 52.9, "CE_media": 0.7, "n_cuarteles": 14.0, "pct_dren_mean": 27.9, "pct_dren_min": 0.0, "pct_dren_max": 83.3325, "CE_sal_mean": 1.29, "pH_sal_mean": 4.5, "n_zonas": 86.0}, {"fecha": "2025-10-16", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 25.9, "pct_dren_min": 0.0, "pct_dren_max": 75.0, "CE_sal_mean": 1.83, "pH_sal_mean": 3.14, "n_zonas": 86.0}, {"fecha": "2025-10-17", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 22.6, "pct_dren_min": 0.0, "pct_dren_max": 83.3325, "CE_sal_mean": 0.86, "pH_sal_mean": 5.44, "n_zonas": 86.0}, {"fecha": "2025-10-18", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 24.8, "pct_dren_min": 0.0, "pct_dren_max": 83.33, "CE_sal_mean": 1.22, "pH_sal_mean": 5.7, "n_zonas": 43.0}, {"fecha": "2025-10-19", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 14.8, "pct_dren_min": 0.0, "pct_dren_max": 33.3076923077, "CE_sal_mean": 1.05, "pH_sal_mean": 5.8, "n_zonas": 43.0}, {"fecha": "2025-10-20", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 22.0, "pct_dren_min": 0.0, "pct_dren_max": 88.8866666667, "CE_sal_mean": 0.7000000000000001, "pH_sal_mean": 4.61, "n_zonas": 86.0}, {"fecha": "2025-10-21", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 26.0, "pct_dren_min": 0.0, "pct_dren_max": 66.665, "CE_sal_mean": 1.07, "pH_sal_mean": 4.71, "n_zonas": 86.0}, {"fecha": "2025-10-22", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 17.5, "pct_dren_min": 0.0, "pct_dren_max": 83.3325, "CE_sal_mean": 0.98, "pH_sal_mean": 4.65, "n_zonas": 86.0}, {"fecha": "2025-10-23", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 30.1, "pct_dren_min": 0.0, "pct_dren_max": 66.665, "CE_sal_mean": 0.9, "pH_sal_mean": 4.57, "n_zonas": 86.0}, {"fecha": "2025-10-24", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 28.9, "pct_dren_min": 0.0, "pct_dren_max": 66.665, "CE_sal_mean": 0.9400000000000001, "pH_sal_mean": 4.8, "n_zonas": 86.0}, {"fecha": "2025-10-25", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 33.1, "pct_dren_min": 0.0, "pct_dren_max": 66.6666666667, "CE_sal_mean": 0.89, "pH_sal_mean": 5.15, "n_zonas": 43.0}, {"fecha": "2025-10-27", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 29.1, "pct_dren_min": 0.0, "pct_dren_max": 66.665, "CE_sal_mean": 0.92, "pH_sal_mean": 4.86, "n_zonas": 86.0}, {"fecha": "2025-10-28", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 25.2, "pct_dren_min": 0.0, "pct_dren_max": 66.665, "CE_sal_mean": 0.81, "pH_sal_mean": 5.2, "n_zonas": 86.0}, {"fecha": "2025-10-29", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 22.2, "pct_dren_min": 0.0, "pct_dren_max": 66.665, "CE_sal_mean": 0.87, "pH_sal_mean": 5.3, "n_zonas": 86.0}, {"fecha": "2025-10-30", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 23.0, "pct_dren_min": 0.0, "pct_dren_max": 66.665, "CE_sal_mean": 0.88, "pH_sal_mean": 5.19, "n_zonas": 86.0}, {"fecha": "2025-11-03", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 25.2, "pct_dren_min": 0.0, "pct_dren_max": 66.665, "CE_sal_mean": 0.75, "pH_sal_mean": 5.04, "n_zonas": 86.0}, {"fecha": "2025-11-04", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 23.9, "pct_dren_min": 0.0, "pct_dren_max": 83.33, "CE_sal_mean": 0.29, "pH_sal_mean": 5.48, "n_zonas": 86.0}, {"fecha": "2025-11-05", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 24.2, "pct_dren_min": 0.0, "pct_dren_max": 58.3325, "CE_sal_mean": 0.35000000000000003, "pH_sal_mean": 4.91, "n_zonas": 86.0}, {"fecha": "2025-11-06", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 34.9, "pct_dren_min": 0.0, "pct_dren_max": 75.0, "CE_sal_mean": 0.6000000000000001, "pH_sal_mean": 4.13, "n_zonas": 86.0}, {"fecha": "2025-11-07", "hum_media": 44.8, "hum_min": 36.1, "hum_max": 51.7, "CE_media": 1.04, "n_cuarteles": 14.0, "pct_dren_mean": 28.8, "pct_dren_min": 0.0, "pct_dren_max": 66.665, "CE_sal_mean": 0.58, "pH_sal_mean": 4.23, "n_zonas": 86.0}, {"fecha": "2025-11-08", "hum_media": 41.0, "hum_min": 31.3, "hum_max": 50.2, "CE_media": 1.13, "n_cuarteles": 14.0, "pct_dren_mean": 32.6, "pct_dren_min": 11.11, "pct_dren_max": 66.6666666667, "CE_sal_mean": 0.37, "pH_sal_mean": 4.25, "n_zonas": 43.0}, {"fecha": "2025-11-09", "hum_media": 43.7, "hum_min": 37.0, "hum_max": 49.8, "CE_media": 0.56, "n_cuarteles": 12.0, "pct_dren_mean": 21.7, "pct_dren_min": 0.0, "pct_dren_max": 88.6666666667, "CE_sal_mean": 0.67, "pH_sal_mean": 6.05, "n_zonas": 129.0}, {"fecha": "2025-11-10", "hum_media": 46.1, "hum_min": 40.2, "hum_max": 56.3, "CE_media": 1.09, "n_cuarteles": 14.0, "pct_dren_mean": 27.4, "pct_dren_min": 0.0, "pct_dren_max": 66.665, "CE_sal_mean": 0.56, "pH_sal_mean": 4.16, "n_zonas": 86.0}, {"fecha": "2025-11-11", "hum_media": 44.2, "hum_min": 34.8, "hum_max": 53.6, "CE_media": 1.15, "n_cuarteles": 14.0, "pct_dren_mean": 23.2, "pct_dren_min": 0.0, "pct_dren_max": 66.665, "CE_sal_mean": 0.44, "pH_sal_mean": 4.11, "n_zonas": 86.0}, {"fecha": "2025-11-12", "hum_media": 44.8, "hum_min": 36.9, "hum_max": 56.7, "CE_media": 1.07, "n_cuarteles": 14.0, "pct_dren_mean": 28.2, "pct_dren_min": 0.0, "pct_dren_max": 66.665, "CE_sal_mean": 0.73, "pH_sal_mean": 4.34, "n_zonas": 86.0}, {"fecha": "2025-11-13", "hum_media": 41.6, "hum_min": 27.1, "hum_max": 51.4, "CE_media": 0.98, "n_cuarteles": 14.0, "pct_dren_mean": 28.6, "pct_dren_min": 0.0, "pct_dren_max": 66.665, "CE_sal_mean": 0.61, "pH_sal_mean": 3.95, "n_zonas": 86.0}, {"fecha": "2025-11-14", "hum_media": 42.4, "hum_min": 31.4, "hum_max": 49.9, "CE_media": 0.99, "n_cuarteles": 14.0, "pct_dren_mean": 23.7, "pct_dren_min": 0.0, "pct_dren_max": 66.665, "CE_sal_mean": 0.58, "pH_sal_mean": 3.96, "n_zonas": 85.0}, {"fecha": "2025-11-15", "hum_media": 41.5, "hum_min": 35.2, "hum_max": 46.7, "CE_media": 1.01, "n_cuarteles": 14.0, "pct_dren_mean": 23.7, "pct_dren_min": 0.0, "pct_dren_max": 66.665, "CE_sal_mean": 0.49, "pH_sal_mean": 3.88, "n_zonas": 43.0}, {"fecha": "2025-11-17", "hum_media": 43.2, "hum_min": 34.6, "hum_max": 56.3, "CE_media": 1.02, "n_cuarteles": 14.0, "pct_dren_mean": 23.4, "pct_dren_min": 0.0, "pct_dren_max": 66.665, "CE_sal_mean": 0.64, "pH_sal_mean": 3.8200000000000003, "n_zonas": 86.0}, {"fecha": "2025-11-18", "hum_media": 43.1, "hum_min": 31.0, "hum_max": 50.8, "CE_media": 0.93, "n_cuarteles": 14.0, "pct_dren_mean": 21.5, "pct_dren_min": 0.0, "pct_dren_max": 66.665, "CE_sal_mean": 0.6900000000000001, "pH_sal_mean": 3.86, "n_zonas": 86.0}, {"fecha": "2025-11-19", "hum_media": 42.8, "hum_min": 34.6, "hum_max": 50.3, "CE_media": 1.52, "n_cuarteles": 14.0, "pct_dren_mean": 25.5, "pct_dren_min": 0.0, "pct_dren_max": 66.665, "CE_sal_mean": 0.75, "pH_sal_mean": 3.83, "n_zonas": 86.0}, {"fecha": "2025-11-20", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 27.4, "pct_dren_min": 0.0, "pct_dren_max": 61.11, "CE_sal_mean": 0.5, "pH_sal_mean": 4.02, "n_zonas": 43.0}, {"fecha": "2025-11-21", "hum_media": 45.0, "hum_min": 38.9, "hum_max": 50.9, "CE_media": 1.35, "n_cuarteles": 14.0, "pct_dren_mean": 21.1, "pct_dren_min": 0.0, "pct_dren_max": 66.665, "CE_sal_mean": 0.78, "pH_sal_mean": 3.67, "n_zonas": 86.0}, {"fecha": "2025-11-22", "hum_media": 43.4, "hum_min": 35.0, "hum_max": 51.5, "CE_media": 1.18, "n_cuarteles": 14.0, "pct_dren_mean": 29.6, "pct_dren_min": 0.0, "pct_dren_max": 66.665, "CE_sal_mean": 0.75, "pH_sal_mean": 3.5, "n_zonas": 43.0}, {"fecha": "2025-11-24", "hum_media": 42.8, "hum_min": 31.4, "hum_max": 50.4, "CE_media": 1.05, "n_cuarteles": 14.0, "pct_dren_mean": 32.1, "pct_dren_min": 0.0, "pct_dren_max": 66.6666666667, "CE_sal_mean": 0.8300000000000001, "pH_sal_mean": 3.65, "n_zonas": 86.0}, {"fecha": "2025-11-25", "hum_media": 48.8, "hum_min": 34.2, "hum_max": 63.1, "CE_media": 1.0, "n_cuarteles": 14.0, "pct_dren_mean": 35.8, "pct_dren_min": 0.0, "pct_dren_max": 72.2216666667, "CE_sal_mean": 0.74, "pH_sal_mean": 3.37, "n_zonas": 86.0}, {"fecha": "2025-11-26", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 29.5, "pct_dren_min": 5.555, "pct_dren_max": 66.665, "CE_sal_mean": 0.37, "pH_sal_mean": 5.06, "n_zonas": 43.0}, {"fecha": "2025-11-27", "hum_media": 47.4, "hum_min": 37.8, "hum_max": 62.6, "CE_media": 1.05, "n_cuarteles": 14.0, "pct_dren_mean": 41.2, "pct_dren_min": 5.555, "pct_dren_max": 72.2216666667, "CE_sal_mean": 0.8300000000000001, "pH_sal_mean": 3.47, "n_zonas": 86.0}, {"fecha": "2025-11-28", "hum_media": 49.1, "hum_min": 38.2, "hum_max": 63.7, "CE_media": 1.08, "n_cuarteles": 14.0, "pct_dren_mean": 38.4, "pct_dren_min": 5.555, "pct_dren_max": 77.7766666667, "CE_sal_mean": 0.67, "pH_sal_mean": 3.68, "n_zonas": 86.0}, {"fecha": "2025-11-29", "hum_media": 49.2, "hum_min": 37.9, "hum_max": 58.3, "CE_media": 1.15, "n_cuarteles": 14.0, "pct_dren_mean": 34.3, "pct_dren_min": 5.555, "pct_dren_max": 66.665, "CE_sal_mean": 0.6000000000000001, "pH_sal_mean": 4.05, "n_zonas": 43.0}, {"fecha": "2025-12-01", "hum_media": 46.3, "hum_min": 35.1, "hum_max": 54.8, "CE_media": 1.35, "n_cuarteles": 14.0, "pct_dren_mean": 37.6, "pct_dren_min": 5.555, "pct_dren_max": 77.7766666667, "CE_sal_mean": 0.6900000000000001, "pH_sal_mean": 3.51, "n_zonas": 86.0}, {"fecha": "2025-12-02", "hum_media": 48.1, "hum_min": 32.0, "hum_max": 58.5, "CE_media": 1.2, "n_cuarteles": 14.0, "pct_dren_mean": 34.8, "pct_dren_min": 0.0, "pct_dren_max": 66.665, "CE_sal_mean": 0.59, "pH_sal_mean": 3.91, "n_zonas": 86.0}, {"fecha": "2025-12-03", "hum_media": 49.5, "hum_min": 36.2, "hum_max": 66.3, "CE_media": 1.38, "n_cuarteles": 14.0, "pct_dren_mean": 32.3, "pct_dren_min": 0.0, "pct_dren_max": 72.2216666667, "CE_sal_mean": 0.75, "pH_sal_mean": 3.52, "n_zonas": 86.0}, {"fecha": "2025-12-04", "hum_media": 43.8, "hum_min": 34.1, "hum_max": 53.2, "CE_media": 1.41, "n_cuarteles": 14.0, "pct_dren_mean": 26.6, "pct_dren_min": 0.0, "pct_dren_max": 66.665, "CE_sal_mean": 0.62, "pH_sal_mean": 3.9, "n_zonas": 86.0}, {"fecha": "2025-12-05", "hum_media": 47.1, "hum_min": 35.3, "hum_max": 60.1, "CE_media": 1.39, "n_cuarteles": 14.0, "pct_dren_mean": 31.5, "pct_dren_min": 0.0, "pct_dren_max": 72.2216666667, "CE_sal_mean": 0.7000000000000001, "pH_sal_mean": 3.29, "n_zonas": 86.0}, {"fecha": "2025-12-06", "hum_media": 47.1, "hum_min": 35.5, "hum_max": 57.9, "CE_media": 1.59, "n_cuarteles": 14.0, "pct_dren_mean": 22.8, "pct_dren_min": 0.0, "pct_dren_max": 66.665, "CE_sal_mean": 0.75, "pH_sal_mean": 3.45, "n_zonas": 43.0}, {"fecha": "2025-12-08", "hum_media": 44.6, "hum_min": 39.9, "hum_max": 50.1, "CE_media": 0.53, "n_cuarteles": 12.0, "pct_dren_mean": 17.6, "pct_dren_min": 0.0, "pct_dren_max": 66.6666666667, "CE_sal_mean": 0.41000000000000003, "pH_sal_mean": 6.23, "n_zonas": 74.0}, {"fecha": "2025-12-09", "hum_media": 43.4, "hum_min": 30.0, "hum_max": 60.8, "CE_media": 1.74, "n_cuarteles": 14.0, "pct_dren_mean": 29.7, "pct_dren_min": 0.0, "pct_dren_max": 77.7766666667, "CE_sal_mean": 0.71, "pH_sal_mean": 4.72, "n_zonas": 172.0}, {"fecha": "2025-12-10", "hum_media": 50.1, "hum_min": 38.6, "hum_max": 60.5, "CE_media": 1.39, "n_cuarteles": 14.0, "pct_dren_mean": 34.1, "pct_dren_min": 0.0, "pct_dren_max": 77.7766666667, "CE_sal_mean": 0.77, "pH_sal_mean": 3.68, "n_zonas": 86.0}, {"fecha": "2025-12-11", "hum_media": 44.7, "hum_min": 25.9, "hum_max": 55.2, "CE_media": 1.25, "n_cuarteles": 14.0, "pct_dren_mean": 38.4, "pct_dren_min": 0.0, "pct_dren_max": 83.3333333333, "CE_sal_mean": 0.56, "pH_sal_mean": 3.67, "n_zonas": 86.0}, {"fecha": "2025-12-12", "hum_media": 53.1, "hum_min": 37.4, "hum_max": 62.6, "CE_media": 1.64, "n_cuarteles": 14.0, "pct_dren_mean": 36.3, "pct_dren_min": 0.0, "pct_dren_max": 83.3333333333, "CE_sal_mean": 0.71, "pH_sal_mean": 3.76, "n_zonas": 215.0}, {"fecha": "2025-12-13", "hum_media": 48.2, "hum_min": 34.6, "hum_max": 62.2, "CE_media": 1.58, "n_cuarteles": 14.0, "pct_dren_mean": 28.2, "pct_dren_min": 0.0, "pct_dren_max": 66.665, "CE_sal_mean": 0.72, "pH_sal_mean": 4.08, "n_zonas": 43.0}, {"fecha": "2025-12-16", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 10.7, "pct_dren_min": 0.0, "pct_dren_max": 44.443333333300004, "CE_sal_mean": 0.42, "pH_sal_mean": 4.9, "n_zonas": 43.0}, {"fecha": "2025-12-17", "hum_media": 47.7, "hum_min": 38.2, "hum_max": 57.9, "CE_media": 1.32, "n_cuarteles": 14.0, "pct_dren_mean": null, "pct_dren_min": null, "pct_dren_max": null, "CE_sal_mean": null, "pH_sal_mean": null, "n_zonas": null}, {"fecha": "2025-12-18", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 33.3, "pct_dren_min": 0.0, "pct_dren_max": 83.3333333333, "CE_sal_mean": 0.74, "pH_sal_mean": 3.7800000000000002, "n_zonas": 86.0}, {"fecha": "2025-12-19", "hum_media": 51.5, "hum_min": 35.7, "hum_max": 63.9, "CE_media": 1.16, "n_cuarteles": 14.0, "pct_dren_mean": 24.5, "pct_dren_min": 0.0, "pct_dren_max": 66.665, "CE_sal_mean": 0.68, "pH_sal_mean": 3.9, "n_zonas": 43.0}, {"fecha": "2025-12-20", "hum_media": 44.7, "hum_min": 29.1, "hum_max": 63.1, "CE_media": 1.27, "n_cuarteles": 14.0, "pct_dren_mean": 24.5, "pct_dren_min": 0.0, "pct_dren_max": 66.665, "CE_sal_mean": 0.68, "pH_sal_mean": 3.9, "n_zonas": 43.0}, {"fecha": "2025-12-22", "hum_media": 48.9, "hum_min": 33.9, "hum_max": 62.8, "CE_media": 1.38, "n_cuarteles": 14.0, "pct_dren_mean": 43.8, "pct_dren_min": 7.4066666667, "pct_dren_max": 83.3333333333, "CE_sal_mean": 0.54, "pH_sal_mean": 3.85, "n_zonas": 43.0}, {"fecha": "2025-12-23", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 38.0, "pct_dren_min": 5.555, "pct_dren_max": 83.3333333333, "CE_sal_mean": 0.51, "pH_sal_mean": 3.87, "n_zonas": 86.0}, {"fecha": "2025-12-26", "hum_media": 44.2, "hum_min": 29.0, "hum_max": 55.7, "CE_media": 1.59, "n_cuarteles": 14.0, "pct_dren_mean": 30.6, "pct_dren_min": 5.555, "pct_dren_max": 72.2216666667, "CE_sal_mean": 0.54, "pH_sal_mean": 3.55, "n_zonas": 86.0}, {"fecha": "2025-12-27", "hum_media": 47.7, "hum_min": 29.2, "hum_max": 57.5, "CE_media": 1.41, "n_cuarteles": 14.0, "pct_dren_mean": 27.1, "pct_dren_min": 5.555, "pct_dren_max": 66.665, "CE_sal_mean": 0.59, "pH_sal_mean": 3.65, "n_zonas": 43.0}, {"fecha": "2025-12-29", "hum_media": 45.4, "hum_min": 29.2, "hum_max": 56.8, "CE_media": 1.47, "n_cuarteles": 14.0, "pct_dren_mean": 25.4, "pct_dren_min": 0.0, "pct_dren_max": 72.2216666667, "CE_sal_mean": 0.54, "pH_sal_mean": 3.33, "n_zonas": 86.0}, {"fecha": "2025-12-30", "hum_media": 44.3, "hum_min": 31.4, "hum_max": 62.3, "CE_media": 1.26, "n_cuarteles": 14.0, "pct_dren_mean": 24.3, "pct_dren_min": 0.0, "pct_dren_max": 66.665, "CE_sal_mean": 0.7000000000000001, "pH_sal_mean": 3.23, "n_zonas": 86.0}, {"fecha": "2025-12-31", "hum_media": 43.1, "hum_min": 24.4, "hum_max": 58.0, "CE_media": 1.23, "n_cuarteles": 14.0, "pct_dren_mean": 27.1, "pct_dren_min": 0.0, "pct_dren_max": 66.665, "CE_sal_mean": 0.73, "pH_sal_mean": 3.15, "n_zonas": 86.0}, {"fecha": "2026-01-02", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 26.6, "pct_dren_min": 0.0, "pct_dren_max": 66.665, "CE_sal_mean": 0.68, "pH_sal_mean": 3.11, "n_zonas": 86.0}, {"fecha": "2026-01-03", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 32.3, "pct_dren_min": 16.665, "pct_dren_max": 66.665, "CE_sal_mean": 0.8300000000000001, "pH_sal_mean": 3.81, "n_zonas": 43.0}, {"fecha": "2026-01-06", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 24.3, "pct_dren_min": 0.0, "pct_dren_max": 44.443333333300004, "CE_sal_mean": 0.32, "pH_sal_mean": 4.86, "n_zonas": 43.0}, {"fecha": "2026-01-07", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 34.7, "pct_dren_min": 11.11, "pct_dren_max": 66.6666666667, "CE_sal_mean": 0.73, "pH_sal_mean": 3.9, "n_zonas": 86.0}, {"fecha": "2026-01-08", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 39.5, "pct_dren_min": 11.11, "pct_dren_max": 77.7766666667, "CE_sal_mean": 0.58, "pH_sal_mean": 4.27, "n_zonas": 86.0}, {"fecha": "2026-01-09", "hum_media": 41.1, "hum_min": 34.2, "hum_max": 51.9, "CE_media": 1.24, "n_cuarteles": 14.0, "pct_dren_mean": 42.4, "pct_dren_min": 16.665, "pct_dren_max": 72.2216666667, "CE_sal_mean": 0.71, "pH_sal_mean": 3.99, "n_zonas": 86.0}, {"fecha": "2026-01-10", "hum_media": 39.3, "hum_min": 30.7, "hum_max": 53.3, "CE_media": 1.26, "n_cuarteles": 14.0, "pct_dren_mean": 39.1, "pct_dren_min": 16.665, "pct_dren_max": 66.6666666667, "CE_sal_mean": 0.73, "pH_sal_mean": 4.08, "n_zonas": 43.0}, {"fecha": "2026-01-12", "hum_media": 43.2, "hum_min": 30.7, "hum_max": 54.3, "CE_media": 1.53, "n_cuarteles": 14.0, "pct_dren_mean": 36.8, "pct_dren_min": 0.0, "pct_dren_max": 66.6666666667, "CE_sal_mean": 0.75, "pH_sal_mean": 3.5700000000000003, "n_zonas": 86.0}, {"fecha": "2026-01-13", "hum_media": 42.5, "hum_min": 28.4, "hum_max": 54.9, "CE_media": 1.38, "n_cuarteles": 14.0, "pct_dren_mean": 38.4, "pct_dren_min": 0.0, "pct_dren_max": 72.2216666667, "CE_sal_mean": 0.8300000000000001, "pH_sal_mean": 3.48, "n_zonas": 86.0}, {"fecha": "2026-01-14", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 46.1, "pct_dren_min": 0.0, "pct_dren_max": 88.8866666667, "CE_sal_mean": 0.77, "pH_sal_mean": 3.8200000000000003, "n_zonas": 86.0}, {"fecha": "2026-01-15", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 43.8, "pct_dren_min": 16.665, "pct_dren_max": 72.2216666667, "CE_sal_mean": 0.92, "pH_sal_mean": 3.71, "n_zonas": 86.0}, {"fecha": "2026-01-16", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 36.5, "pct_dren_min": 11.11, "pct_dren_max": 66.6666666667, "CE_sal_mean": 1.26, "pH_sal_mean": 3.24, "n_zonas": 43.0}, {"fecha": "2026-01-17", "hum_media": 43.3, "hum_min": 33.1, "hum_max": 58.3, "CE_media": 1.75, "n_cuarteles": 14.0, "pct_dren_mean": 41.2, "pct_dren_min": 16.665, "pct_dren_max": 66.6666666667, "CE_sal_mean": 0.72, "pH_sal_mean": 3.98, "n_zonas": 43.0}, {"fecha": "2026-01-19", "hum_media": 44.9, "hum_min": 37.2, "hum_max": 54.6, "CE_media": 1.46, "n_cuarteles": 14.0, "pct_dren_mean": 22.0, "pct_dren_min": 0.0, "pct_dren_max": 66.5, "CE_sal_mean": 0.99, "pH_sal_mean": 3.05, "n_zonas": 86.0}, {"fecha": "2026-01-20", "hum_media": 47.5, "hum_min": 36.1, "hum_max": 54.7, "CE_media": 1.43, "n_cuarteles": 14.0, "pct_dren_mean": 29.7, "pct_dren_min": 0.0, "pct_dren_max": 66.6666666667, "CE_sal_mean": 0.92, "pH_sal_mean": 3.1, "n_zonas": 86.0}, {"fecha": "2026-01-21", "hum_media": 42.7, "hum_min": 33.3, "hum_max": 54.2, "CE_media": 1.63, "n_cuarteles": 14.0, "pct_dren_mean": 34.6, "pct_dren_min": 0.0, "pct_dren_max": 66.6666666667, "CE_sal_mean": 0.58, "pH_sal_mean": 4.27, "n_zonas": 86.0}, {"fecha": "2026-01-22", "hum_media": 46.8, "hum_min": 34.2, "hum_max": 59.8, "CE_media": 1.79, "n_cuarteles": 14.0, "pct_dren_mean": 34.1, "pct_dren_min": 0.0, "pct_dren_max": 72.1666666667, "CE_sal_mean": 0.78, "pH_sal_mean": 5.3, "n_zonas": 86.0}, {"fecha": "2026-01-23", "hum_media": 44.0, "hum_min": 37.8, "hum_max": 51.3, "CE_media": 1.37, "n_cuarteles": 14.0, "pct_dren_mean": 34.1, "pct_dren_min": 0.0, "pct_dren_max": 72.1666666667, "CE_sal_mean": 0.78, "pH_sal_mean": 5.3, "n_zonas": 86.0}, {"fecha": "2026-01-26", "hum_media": 45.2, "hum_min": 39.1, "hum_max": 53.2, "CE_media": 1.44, "n_cuarteles": 14.0, "pct_dren_mean": 36.4, "pct_dren_min": 0.0, "pct_dren_max": 66.6666666667, "CE_sal_mean": 0.85, "pH_sal_mean": 4.79, "n_zonas": 86.0}, {"fecha": "2026-01-27", "hum_media": 43.6, "hum_min": 31.7, "hum_max": 54.1, "CE_media": 1.78, "n_cuarteles": 14.0, "pct_dren_mean": 29.4, "pct_dren_min": 0.0, "pct_dren_max": 72.1666666667, "CE_sal_mean": 0.84, "pH_sal_mean": 5.3, "n_zonas": 79.0}, {"fecha": "2026-01-28", "hum_media": 45.0, "hum_min": 34.6, "hum_max": 56.8, "CE_media": 1.68, "n_cuarteles": 14.0, "pct_dren_mean": 42.7, "pct_dren_min": 5.5, "pct_dren_max": 72.1666666667, "CE_sal_mean": 0.97, "pH_sal_mean": 5.89, "n_zonas": 43.0}, {"fecha": "2026-01-30", "hum_media": 43.2, "hum_min": 29.6, "hum_max": 51.6, "CE_media": 1.6, "n_cuarteles": 14.0, "pct_dren_mean": 34.7, "pct_dren_min": 0.0, "pct_dren_max": 72.1666666667, "CE_sal_mean": 0.56, "pH_sal_mean": 6.07, "n_zonas": 86.0}, {"fecha": "2026-01-31", "hum_media": 42.6, "hum_min": 34.5, "hum_max": 51.8, "CE_media": 1.78, "n_cuarteles": 14.0, "pct_dren_mean": 30.3, "pct_dren_min": 0.0, "pct_dren_max": 83.25, "CE_sal_mean": 0.61, "pH_sal_mean": 5.93, "n_zonas": 43.0}, {"fecha": "2026-02-02", "hum_media": 48.5, "hum_min": 34.4, "hum_max": 57.0, "CE_media": 1.61, "n_cuarteles": 14.0, "pct_dren_mean": 35.1, "pct_dren_min": 0.0, "pct_dren_max": 77.6666666667, "CE_sal_mean": 0.46, "pH_sal_mean": 6.14, "n_zonas": 86.0}, {"fecha": "2026-02-03", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 33.8, "pct_dren_min": 5.0769230769, "pct_dren_max": 66.6153846154, "CE_sal_mean": 0.30000000000000004, "pH_sal_mean": 6.1, "n_zonas": 43.0}, {"fecha": "2026-02-04", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 50.5, "pct_dren_min": 18.4444444444, "pct_dren_max": 77.6666666667, "CE_sal_mean": 0.33, "pH_sal_mean": 6.28, "n_zonas": 43.0}, {"fecha": "2026-02-05", "hum_media": 50.5, "hum_min": 45.4, "hum_max": 55.2, "CE_media": 1.56, "n_cuarteles": 14.0, "pct_dren_mean": 52.7, "pct_dren_min": 20.461538461499998, "pct_dren_max": 95.1428571429, "CE_sal_mean": 0.59, "pH_sal_mean": 5.43, "n_zonas": 86.0}, {"fecha": "2026-02-06", "hum_media": 48.5, "hum_min": 41.0, "hum_max": 56.3, "CE_media": 1.62, "n_cuarteles": 14.0, "pct_dren_mean": 30.0, "pct_dren_min": 0.0, "pct_dren_max": 77.6666666667, "CE_sal_mean": 0.97, "pH_sal_mean": 4.44, "n_zonas": 86.0}, {"fecha": "2026-02-07", "hum_media": 51.4, "hum_min": 41.4, "hum_max": 59.9, "CE_media": 1.32, "n_cuarteles": 14.0, "pct_dren_mean": null, "pct_dren_min": null, "pct_dren_max": null, "CE_sal_mean": null, "pH_sal_mean": null, "n_zonas": null}, {"fecha": "2026-02-09", "hum_media": 51.6, "hum_min": 45.0, "hum_max": 58.4, "CE_media": 1.65, "n_cuarteles": 14.0, "pct_dren_mean": null, "pct_dren_min": null, "pct_dren_max": null, "CE_sal_mean": null, "pH_sal_mean": null, "n_zonas": null}, {"fecha": "2026-02-10", "hum_media": 51.4, "hum_min": 42.1, "hum_max": 59.2, "CE_media": 1.42, "n_cuarteles": 14.0, "pct_dren_mean": 23.6, "pct_dren_min": 0.0, "pct_dren_max": 90.9090909091, "CE_sal_mean": 0.77, "pH_sal_mean": 4.45, "n_zonas": 86.0}, {"fecha": "2026-02-12", "hum_media": 50.1, "hum_min": 42.4, "hum_max": 59.6, "CE_media": 1.7, "n_cuarteles": 14.0, "pct_dren_mean": null, "pct_dren_min": null, "pct_dren_max": null, "CE_sal_mean": null, "pH_sal_mean": null, "n_zonas": null}, {"fecha": "2026-02-13", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 30.0, "pct_dren_min": 0.0, "pct_dren_max": 72.1666666667, "CE_sal_mean": 0.8, "pH_sal_mean": 4.35, "n_zonas": 70.0}, {"fecha": "2026-02-14", "hum_media": 51.6, "hum_min": 45.2, "hum_max": 60.5, "CE_media": 1.4, "n_cuarteles": 14.0, "pct_dren_mean": null, "pct_dren_min": null, "pct_dren_max": null, "CE_sal_mean": null, "pH_sal_mean": null, "n_zonas": null}, {"fecha": "2026-02-16", "hum_media": 52.3, "hum_min": 44.6, "hum_max": 59.8, "CE_media": 1.51, "n_cuarteles": 14.0, "pct_dren_mean": 22.1, "pct_dren_min": 0.0, "pct_dren_max": 66.5, "CE_sal_mean": 0.86, "pH_sal_mean": 4.41, "n_zonas": 43.0}, {"fecha": "2026-02-19", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 45.7, "pct_dren_min": 11.1666666667, "pct_dren_max": 77.6666666667, "CE_sal_mean": 0.98, "pH_sal_mean": 4.13, "n_zonas": 43.0}, {"fecha": "2026-02-20", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 29.9, "pct_dren_min": 0.0, "pct_dren_max": 77.6666666667, "CE_sal_mean": 0.93, "pH_sal_mean": 4.12, "n_zonas": 86.0}, {"fecha": "2026-02-21", "hum_media": 50.3, "hum_min": 44.9, "hum_max": 58.5, "CE_media": 1.59, "n_cuarteles": 14.0, "pct_dren_mean": 16.8, "pct_dren_min": 0.0, "pct_dren_max": 66.5, "CE_sal_mean": 0.55, "pH_sal_mean": 5.37, "n_zonas": 43.0}, {"fecha": "2026-02-23", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 24.9, "pct_dren_min": 0.0, "pct_dren_max": 60.6060606061, "CE_sal_mean": 0.81, "pH_sal_mean": 4.18, "n_zonas": 43.0}, {"fecha": "2026-02-24", "hum_media": 51.0, "hum_min": 45.3, "hum_max": 59.2, "CE_media": 1.72, "n_cuarteles": 14.0, "pct_dren_mean": null, "pct_dren_min": null, "pct_dren_max": null, "CE_sal_mean": null, "pH_sal_mean": null, "n_zonas": null}, {"fecha": "2026-02-25", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 35.5, "pct_dren_min": 0.0, "pct_dren_max": 70.6060606061, "CE_sal_mean": 1.22, "pH_sal_mean": 4.12, "n_zonas": 43.0}, {"fecha": "2026-02-28", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 29.6, "pct_dren_min": 0.0, "pct_dren_max": 66.6666666667, "CE_sal_mean": 1.06, "pH_sal_mean": 4.18, "n_zonas": 39.0}, {"fecha": "2026-03-02", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 34.9, "pct_dren_min": 0.0, "pct_dren_max": 74.6268656716, "CE_sal_mean": 1.46, "pH_sal_mean": 4.06, "n_zonas": 70.0}, {"fecha": "2026-03-04", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 23.1, "pct_dren_min": 0.0, "pct_dren_max": 59.7014925373, "CE_sal_mean": 1.44, "pH_sal_mean": 4.11, "n_zonas": 70.0}, {"fecha": "2026-03-05", "hum_media": 46.9, "hum_min": 31.4, "hum_max": 60.8, "CE_media": 1.53, "n_cuarteles": 12.0, "pct_dren_mean": 26.9, "pct_dren_min": 0.0, "pct_dren_max": 54.6268656716, "CE_sal_mean": 1.4, "pH_sal_mean": 3.88, "n_zonas": 70.0}, {"fecha": "2026-03-06", "hum_media": 43.2, "hum_min": 26.5, "hum_max": 52.2, "CE_media": 1.76, "n_cuarteles": 12.0, "pct_dren_mean": 24.8, "pct_dren_min": 0.0, "pct_dren_max": 59.7014925373, "CE_sal_mean": 1.4100000000000001, "pH_sal_mean": 4.28, "n_zonas": 71.0}, {"fecha": "2026-03-09", "hum_media": 47.0, "hum_min": 43.4, "hum_max": 52.0, "CE_media": 1.86, "n_cuarteles": 12.0, "pct_dren_mean": 27.6, "pct_dren_min": 0.0, "pct_dren_max": 58.25, "CE_sal_mean": 1.4100000000000001, "pH_sal_mean": 4.15, "n_zonas": 72.0}, {"fecha": "2026-03-11", "hum_media": 43.5, "hum_min": 31.7, "hum_max": 50.5, "CE_media": 1.62, "n_cuarteles": 12.0, "pct_dren_mean": null, "pct_dren_min": null, "pct_dren_max": null, "CE_sal_mean": null, "pH_sal_mean": null, "n_zonas": null}, {"fecha": "2026-03-12", "hum_media": 44.7, "hum_min": 37.4, "hum_max": 54.9, "CE_media": 1.7, "n_cuarteles": 12.0, "pct_dren_mean": 22.0, "pct_dren_min": 0.0, "pct_dren_max": 59.7014925373, "CE_sal_mean": 1.44, "pH_sal_mean": 3.74, "n_zonas": 37.0}, {"fecha": "2026-03-16", "hum_media": 47.5, "hum_min": 31.4, "hum_max": 57.9, "CE_media": 1.95, "n_cuarteles": 12.0, "pct_dren_mean": 35.7, "pct_dren_min": 0.0, "pct_dren_max": 90.9090909091, "CE_sal_mean": 1.4, "pH_sal_mean": 3.17, "n_zonas": 72.0}, {"fecha": "2026-03-17", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 26.2, "pct_dren_min": 0.0, "pct_dren_max": 49.7014925373, "CE_sal_mean": 1.3599999999999999, "pH_sal_mean": 3.08, "n_zonas": 36.0}, {"fecha": "2026-03-18", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 21.4, "pct_dren_min": 0.0, "pct_dren_max": 44.776119403, "CE_sal_mean": 1.1, "pH_sal_mean": 3.24, "n_zonas": 36.0}, {"fecha": "2026-03-19", "hum_media": 50.1, "hum_min": 43.6, "hum_max": 53.0, "CE_media": 1.69, "n_cuarteles": 12.0, "pct_dren_mean": 32.4, "pct_dren_min": 0.0, "pct_dren_max": 54.6268656716, "CE_sal_mean": 1.33, "pH_sal_mean": 3.31, "n_zonas": 36.0}, {"fecha": "2026-03-20", "hum_media": null, "hum_min": null, "hum_max": null, "CE_media": null, "n_cuarteles": null, "pct_dren_mean": 35.9, "pct_dren_min": 0.0, "pct_dren_max": 70.6060606061, "CE_sal_mean": 1.4100000000000001, "pH_sal_mean": 3.35, "n_zonas": 36.0}, {"fecha": "2026-03-23", "hum_media": 47.5, "hum_min": 35.5, "hum_max": 56.8, "CE_media": 1.6, "n_cuarteles": 12.0, "pct_dren_mean": null, "pct_dren_min": null, "pct_dren_max": null, "CE_sal_mean": null, "pH_sal_mean": null, "n_zonas": null}];
+  var tlChartMain = null, tlChartSec = null;
+  var tlLayers = { hum: true, dren: true, ce: true, ph: false };
+  var tlStart = 0, tlEnd = TL_DATA.length - 1;
+
+  function tlInit() {
+    if (typeof Chart === 'undefined') { setTimeout(tlInit, 300); return; }
+    tlSetRange('1m');
+  }
+
+  function tlGetVisible() {
+    return TL_DATA.slice(tlStart, tlEnd + 1);
+  }
+
+  window.tlToggle = function(layer, btn) {
+    tlLayers[layer] = !tlLayers[layer];
+    btn.classList.toggle('active');
+    tlRender();
+  };
+
+  window.tlSetRange = function(r) {
+    document.querySelectorAll('.tl-btn[onclick*="tlSetRange"]').forEach(b => b.classList.remove('active'));
+    var total = TL_DATA.length;
+    if (r === 'all') { tlStart = 0; tlEnd = total - 1; }
+    else if (r === '6m') { tlStart = Math.max(0, total - 120); tlEnd = total - 1; }
+    else if (r === '3m') { tlStart = Math.max(0, total - 60); tlEnd = total - 1; }
+    else if (r === '1m') { tlStart = Math.max(0, total - 30); tlEnd = total - 1; }
+    var pctS = Math.round(tlStart / total * 100);
+    var pctE = Math.round(tlEnd / total * 100);
+    document.getElementById('tl-slider-start').value = pctS;
+    document.getElementById('tl-slider-end').value = pctE;
+    tlRender();
+  };
+
+  window.tlSlide = function() {
+    var s = parseInt(document.getElementById('tl-slider-start').value);
+    var e = parseInt(document.getElementById('tl-slider-end').value);
+    if (s > e - 5) s = e - 5;
+    tlStart = Math.round(s / 100 * (TL_DATA.length - 1));
+    tlEnd   = Math.round(e / 100 * (TL_DATA.length - 1));
+    tlRender();
+  };
+
+  function tlRender() {
+    var vis = tlGetVisible();
+    var labels = vis.map(d => d.fecha.substring(5));
+    var fullLabels = vis.map(d => d.fecha);
+
+    // Update range display
+    if (vis.length > 0) {
+      document.getElementById('tl-range-start').textContent = vis[0].fecha;
+      document.getElementById('tl-range-end').textContent = vis[vis.length-1].fecha;
+    }
+
+    // Update KPIs
+    var humVals = vis.filter(d => d.hum_media != null).map(d => d.hum_media);
+    var drenVals = vis.filter(d => d.pct_dren_mean != null).map(d => d.pct_dren_mean);
+    var ceVals = vis.filter(d => d.CE_media != null).map(d => d.CE_media);
+    var dias = vis.length;
+
+    document.getElementById('tl-kpi-dias').textContent = dias;
+    document.getElementById('tl-kpi-hum').textContent = humVals.length ? 
+      (humVals.reduce((a,b)=>a+b,0)/humVals.length).toFixed(1) + '%' : '—';
+    document.getElementById('tl-kpi-dren').textContent = drenVals.length ?
+      (drenVals.reduce((a,b)=>a+b,0)/drenVals.length).toFixed(1) + '%' : '—';
+    document.getElementById('tl-kpi-ce').textContent = ceVals.length ?
+      (ceVals.reduce((a,b)=>a+b,0)/ceVals.length).toFixed(2) : '—';
+
+    // ── MAIN CHART ──
+    var datasets = [];
+
+    if (tlLayers.hum) {
+      // Range fill
+      datasets.push({
+        label: 'Hum. máx',
+        data: vis.map(d => d.hum_max),
+        borderColor: 'transparent', borderWidth: 0,
+        backgroundColor: 'rgba(58,138,42,0.15)',
+        fill: '+1', tension: 0.3, pointRadius: 0, order: 3
+      });
+      datasets.push({
+        label: 'Hum. mín',
+        data: vis.map(d => d.hum_min),
+        borderColor: 'transparent', borderWidth: 0,
+        backgroundColor: 'rgba(58,138,42,0.15)',
+        fill: false, tension: 0.3, pointRadius: 0, order: 3
+      });
+      // Mean line
+      datasets.push({
+        label: '💧 Hum. media %',
+        data: vis.map(d => d.hum_media),
+        borderColor: '#3a8a2a', backgroundColor: '#3a8a2a',
+        borderWidth: 2.5, tension: 0.3,
+        pointRadius: vis.length < 60 ? 3 : 0,
+        pointHoverRadius: 5, fill: false, order: 1, yAxisID: 'y'
+      });
+    }
+
+    if (tlLayers.dren) {
+      datasets.push({
+        label: '🚿 % Drenaje',
+        data: vis.map(d => d.pct_dren_mean),
+        borderColor: '#2a5f8f', backgroundColor: 'rgba(42,95,143,0.15)',
+        borderWidth: 2, tension: 0.3,
+        pointRadius: vis.length < 60 ? 3 : 0,
+        pointHoverRadius: 5, fill: false, order: 2, yAxisID: 'y'
+      });
+    }
+
+    var ctx1 = document.getElementById('tl-main-chart').getContext('2d');
+    if (tlChartMain) tlChartMain.destroy();
+    tlChartMain = new Chart(ctx1, {
+      type: 'line',
+      data: { labels: labels, datasets: datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'bottom', labels: { font: { size: 10 }, padding: 8,
+            filter: l => l.text !== 'Hum. máx' && l.text !== 'Hum. mín'
+          }},
+          tooltip: {
+            callbacks: {
+              title: function(items) { return fullLabels[items[0].dataIndex] || ''; },
+              label: function(item) {
+                if (!item.dataset.label || item.dataset.label.includes('máx') || item.dataset.label.includes('mín')) return null;
+                var v = item.raw;
+                return v != null ? item.dataset.label + ': ' + v.toFixed(1) : null;
+              },
+              afterBody: function(items) {
+                var idx = items[0].dataIndex;
+                var d = vis[idx];
+                if (!d) return [];
+                var lines = [];
+                if (d.hum_min != null && d.hum_max != null)
+                  lines.push('  Rango hum: ' + d.hum_min.toFixed(1) + ' – ' + d.hum_max.toFixed(1) + '%');
+                if (d.n_cuarteles) lines.push('  Cuarteles: ' + d.n_cuarteles);
+                return lines;
+              }
+            }
+          }
+        },
+        scales: {
+          x: { ticks: { font: { size: 9 }, maxRotation: 45, maxTicksLimit: 20 } },
+          y: { min: 0, max: 100, ticks: { font: { size: 10 } },
+               title: { display: true, text: '%', font: { size: 10 } } }
+        }
+      }
+    });
+
+    // ── SECONDARY CHART: CE + pH ──
+    var sec_datasets = [];
+    if (tlLayers.ce) {
+      sec_datasets.push({
+        label: '⚡ CE Salida (mS/cm)',
+        data: vis.map(d => d.CE_sal_mean),
+        borderColor: '#8a6a3a', backgroundColor: 'rgba(138,106,58,0.1)',
+        borderWidth: 2, tension: 0.3,
+        pointRadius: vis.length < 60 ? 2 : 0, pointHoverRadius: 4,
+        fill: false, yAxisID: 'yce'
+      });
+      sec_datasets.push({
+        label: '⚡ CE Humedad (mS/cm)',
+        data: vis.map(d => d.CE_media),
+        borderColor: '#c8a96e', borderDash: [4,3],
+        borderWidth: 1.5, tension: 0.3,
+        pointRadius: 0, pointHoverRadius: 4,
+        fill: false, yAxisID: 'yce'
+      });
+    }
+    if (tlLayers.ph) {
+      sec_datasets.push({
+        label: '🧪 pH Salida',
+        data: vis.map(d => d.pH_sal_mean),
+        borderColor: '#5a3a8a', backgroundColor: 'rgba(90,58,138,0.1)',
+        borderWidth: 2, tension: 0.3,
+        pointRadius: vis.length < 60 ? 2 : 0, pointHoverRadius: 4,
+        fill: false, yAxisID: 'yph'
+      });
+    }
+
+    var ctx2 = document.getElementById('tl-sec-chart').getContext('2d');
+    if (tlChartSec) tlChartSec.destroy();
+    tlChartSec = new Chart(ctx2, {
+      type: 'line',
+      data: { labels: labels, datasets: sec_datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'bottom', labels: { font: { size: 10 }, padding: 6 } }
+        },
+        scales: {
+          x: { ticks: { font: { size: 9 }, maxRotation: 45, maxTicksLimit: 20 } },
+          yce: { type: 'linear', position: 'left', min: 0, max: 4,
+                  ticks: { font: { size: 10 } },
+                  title: { display: true, text: 'CE (mS/cm)', font: { size: 9 } } },
+          yph: { type: 'linear', position: 'right', min: 3, max: 7,
+                  display: tlLayers.ph,
+                  ticks: { font: { size: 10 } },
+                  title: { display: true, text: 'pH', font: { size: 9 } },
+                  grid: { drawOnChartArea: false } }
+        }
+      }
+    });
+  }
+
+  // Auto-init when tab is clicked
+  window.tlTabOpen = function() { tlInit(); };
+  // Also try on load
+  if (document.readyState === 'complete') { setTimeout(tlInit, 500); }
+  else { window.addEventListener('load', function() { setTimeout(tlInit, 500); }); }
+})();
+</script>
+</div>
+
 </body>
 </html>
